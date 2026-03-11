@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.config import build_config_check_items, resolve_source_config
+from core.config import ConfigFieldSpec, SourceConfigError, build_config_check_items, resolve_source_config
 from store.db import Store
 
 from .base import BaseSource
@@ -39,6 +39,25 @@ class SourceRegistry:
         if self.store is not None:
             entries = self.store.get_source_config_map(name)
         return build_config_check_items(source_class.config_spec(), entries)
+
+    def get_config_field_spec(self, source_name: str, key: str) -> ConfigFieldSpec:
+        try:
+            source_class = self._source_classes[source_name]
+        except KeyError as exc:
+            raise RuntimeError(f"unknown source: {source_name}") from exc
+        for spec in source_class.config_spec():
+            if spec.key == key:
+                return spec
+        raise SourceConfigError(f"unknown config key: {source_name}.{key}")
+
+    def prune_undeclared_configs(self) -> None:
+        if self.store is None:
+            return
+        allowed_keys_by_source = {
+            source_name: {spec.key for spec in source_class.config_spec()}
+            for source_name, source_class in self._source_classes.items()
+        }
+        self.store.prune_source_configs(allowed_keys_by_source)
 
     def _resolve_config(self, source_class: type[BaseSource]):
         entries = {}

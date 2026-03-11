@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from urllib.parse import quote
 
 from core.base import BaseSource
@@ -40,12 +41,14 @@ class AShareSource(BaseSource):
         ]
 
     def health(self) -> HealthRecord:
+        started_at = time.perf_counter()
         self._fetch_bars("sh000001", "day", limit=1, since=None, fetch_all=False)
+        latency_ms = int((time.perf_counter() - started_at) * 1000)
         return HealthRecord(
             source=self.name,
             status="ok",
             checked_at=utc_now_iso(),
-            latency_ms=0,
+            latency_ms=latency_ms,
             error=None,
             details="a-share day kline endpoint reachable",
         )

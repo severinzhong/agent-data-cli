@@ -12,6 +12,10 @@ class BrowserFetcher:
         self._collect_cdp_info()
 
     def _collect_cdp_info(self) -> None:
+        if self.cdp_url.startswith(("ws://", "wss://")):
+            self.ws_url = self.cdp_url
+            self.user_agent = ""
+            return
         opener = build_opener(ProxyHandler({}))
         with opener.open(f"{self.cdp_url}/json/version", timeout=5) as response:
             payload = json.loads(response.read().decode("utf-8"))
@@ -28,7 +32,7 @@ class BrowserFetcher:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.connect_over_cdp(self.cdp_url)
+            browser = await playwright.chromium.connect_over_cdp(self.ws_url)
             context = browser.contexts[0] if browser.contexts else await browser.new_context()
             page = await context.new_page()
             await page.goto(url, wait_until="domcontentloaded", timeout=45000)

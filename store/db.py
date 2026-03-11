@@ -28,6 +28,7 @@ class Store:
         with self._connect() as connection:
             connection.executescript(SCHEMA)
         self._ensure_content_record_type_column()
+        self._remove_invalid_content_records()
 
     def upsert_source(self, source: SourceDescriptor) -> None:
         with self._connect() as connection:
@@ -233,6 +234,21 @@ class Store:
             entry.key: entry
             for entry in self.list_source_configs(source)
         }
+
+    def prune_source_configs(self, allowed_keys_by_source: dict[str, set[str]]) -> None:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT source, key FROM source_configs"
+            ).fetchall()
+            for row in rows:
+                source = row["source"]
+                key = row["key"]
+                allowed_keys = allowed_keys_by_source.get(source)
+                if allowed_keys is None or key not in allowed_keys:
+                    connection.execute(
+                        "DELETE FROM source_configs WHERE source = ? AND key = ?",
+                        (source, key),
+                    )
 
     def create_group(self, group_name: str) -> None:
         with self._connect() as connection:
@@ -617,4 +633,12 @@ class Store:
             return
         self._connection.execute(
             "ALTER TABLE content_records ADD COLUMN record_type TEXT NOT NULL DEFAULT ''"
+        )
+
+    def _remove_invalid_content_records(self) -> None:
+        self._connection.execute(
+            """
+            DELETE FROM content_records
+            WHERE TRIM(COALESCE(record_type, '')) = ''
+            """
         )

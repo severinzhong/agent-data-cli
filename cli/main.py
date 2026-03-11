@@ -18,6 +18,7 @@ from cli.formatters import (
     print_update_targets,
 )
 from cli.help import build_command_help_doc, build_global_help_doc, build_source_help_doc, print_help_doc
+from core.config import SourceConfigError
 from core.registry import build_default_registry
 from store.db import Store
 
@@ -125,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     store = Store(DEFAULT_DB_PATH)
     store.init_schema()
     registry = build_default_registry(store)
+    registry.prune_undeclared_configs()
 
     if args.command == "source":
         if args.source_command == "list":
@@ -255,12 +257,18 @@ def main(argv: list[str] | None = None) -> int:
             print_config_entries(store.list_source_configs(args.source))
             return 0
         if args.config_command == "set":
+            spec = registry.get_config_field_spec(args.source, args.key)
+            if args.value_type != spec.value_type:
+                raise SourceConfigError(
+                    f"config type mismatch for {args.source}.{args.key}: "
+                    f"expected {spec.value_type}, got {args.value_type}"
+                )
             store.set_source_config(
                 args.source,
                 args.key,
                 args.value,
                 args.value_type,
-                args.secret,
+                spec.secret or args.secret,
             )
             print_config_entries(store.list_source_configs(args.source))
             return 0
