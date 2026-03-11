@@ -16,6 +16,15 @@ class SourceDescriptor:
 
 
 @dataclass(slots=True)
+class SourceStorageSpec:
+    source: str
+    table_name: str
+    record_schema: str
+    supports_keywords: bool
+    time_field: str
+
+
+@dataclass(slots=True)
 class ChannelRecord:
     source: str
     channel_id: str

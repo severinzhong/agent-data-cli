@@ -6,7 +6,7 @@ from urllib.parse import quote_plus
 
 from core.base import BaseSource
 from core.help import HelpDoc, HelpSection
-from core.models import ChannelRecord, ContentRecord, HealthRecord, SearchResult
+from core.models import ChannelRecord, ContentRecord, HealthRecord, SearchResult, SourceStorageSpec
 from utils.text import clean_text
 from utils.time import utc_now_iso
 
@@ -42,6 +42,15 @@ class HackerNewsSource(BaseSource):
     supports_search = True
     supports_updates = True
     supports_query = True
+
+    def get_storage_spec(self) -> SourceStorageSpec:
+        return SourceStorageSpec(
+            source=self.name,
+            table_name="hackernews_records",
+            record_schema="content",
+            supports_keywords=True,
+            time_field="published_at",
+        )
 
     def list_channels(self) -> list[ChannelRecord]:
         channels = []

@@ -14,6 +14,7 @@ from .models import (
     SearchResult,
     SearchViewSpec,
     SourceDescriptor,
+    SourceStorageSpec,
     SubscriptionRecord,
     UpdateSummary,
 )
@@ -62,6 +63,15 @@ class BaseSource:
             supports_subscriptions=self.supports_subscriptions,
             supports_updates=self.supports_updates,
             supports_query=self.supports_query,
+        )
+
+    def get_storage_spec(self) -> SourceStorageSpec:
+        return SourceStorageSpec(
+            source=self.name,
+            table_name=f"{self.name}_records",
+            record_schema="content",
+            supports_keywords=True,
+            time_field="published_at",
         )
 
     def health(self) -> HealthRecord:
@@ -120,7 +130,11 @@ class BaseSource:
     def get_help(self) -> HelpDoc | None:
         return None
 
-    def subscribe(self, channel_key: str) -> SubscriptionRecord:
+    def subscribe(
+        self,
+        channel_key: str,
+        display_name: str | None = None,
+    ) -> SubscriptionRecord:
         store = self._require_store()
         channel = self.get_channel(channel_key)
         store.upsert_source(self.describe())
@@ -128,7 +142,7 @@ class BaseSource:
         return store.add_subscription(
             source=self.name,
             channel_key=channel.channel_key,
-            display_name=channel.display_name,
+            display_name=display_name or channel.display_name,
             metadata=channel.metadata,
         )
 

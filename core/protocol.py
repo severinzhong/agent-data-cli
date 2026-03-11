@@ -10,6 +10,7 @@ from .models import (
     SearchResult,
     SearchViewSpec,
     SourceDescriptor,
+    SourceStorageSpec,
     SubscriptionRecord,
     UpdateSummary,
 )
@@ -28,6 +29,9 @@ class SourceProtocol(Protocol):
     display_name: str
 
     def describe(self) -> SourceDescriptor:
+        raise NotImplementedError
+
+    def get_storage_spec(self) -> SourceStorageSpec:
         raise NotImplementedError
 
     def health(self) -> HealthRecord:
@@ -82,7 +86,11 @@ class SourceProtocol(Protocol):
     ) -> UpdateSummary:
         raise NotImplementedError
 
-    def subscribe(self, channel_key: str) -> SubscriptionRecord:
+    def subscribe(
+        self,
+        channel_key: str,
+        display_name: str | None = None,
+    ) -> SubscriptionRecord:
         raise NotImplementedError
 
     def unsubscribe(self, channel_key: str) -> None:

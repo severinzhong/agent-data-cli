@@ -15,6 +15,7 @@ from core.models import (
     SearchColumnSpec,
     SearchResult,
     SearchViewSpec,
+    SourceStorageSpec,
 )
 from utils.time import utc_now_iso
 
@@ -33,6 +34,15 @@ class AShareSource(BaseSource):
     supports_search = True
     supports_updates = True
     supports_query = True
+
+    def get_storage_spec(self) -> SourceStorageSpec:
+        return SourceStorageSpec(
+            source=self.name,
+            table_name="ashare_records",
+            record_schema="content",
+            supports_keywords=True,
+            time_field="published_at",
+        )
 
     def list_channels(self) -> list[ChannelRecord]:
         return [

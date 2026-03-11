@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core.config import ConfigFieldSpec, SourceConfigError, build_config_check_items, resolve_source_config
+from core.models import SourceStorageSpec
 from store.db import Store
 
 from .base import BaseSource
@@ -29,6 +30,12 @@ class SourceRegistry:
 
     def list_descriptors(self):
         return [self.build(name).describe() for name in self.list_names()]
+
+    def get_storage_spec(self, name: str) -> SourceStorageSpec:
+        return self.build(name).get_storage_spec()
+
+    def list_storage_specs(self) -> list[SourceStorageSpec]:
+        return [self.get_storage_spec(name) for name in self.list_names()]
 
     def config_check(self, name: str):
         try:

@@ -57,22 +57,6 @@ CREATE TABLE IF NOT EXISTS group_members (
     PRIMARY KEY (group_name, member_type, source, channel_key)
 );
 
-CREATE TABLE IF NOT EXISTS content_records (
-    record_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT NOT NULL,
-    channel_key TEXT NOT NULL,
-    record_type TEXT NOT NULL,
-    external_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    url TEXT NOT NULL,
-    snippet TEXT NOT NULL,
-    author TEXT,
-    published_at TEXT,
-    fetched_at TEXT NOT NULL,
-    raw_payload TEXT NOT NULL,
-    dedup_key TEXT NOT NULL UNIQUE
-);
-
 CREATE TABLE IF NOT EXISTS sync_state (
     source TEXT NOT NULL,
     channel_key TEXT NOT NULL,
@@ -89,4 +73,30 @@ CREATE TABLE IF NOT EXISTS health_checks (
     error TEXT,
     details TEXT NOT NULL
 );
+"""
+
+
+def build_content_table_schema(table_name: str) -> str:
+    return f"""
+CREATE TABLE IF NOT EXISTS {table_name} (
+    record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    channel_key TEXT NOT NULL,
+    record_type TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    snippet TEXT NOT NULL,
+    author TEXT,
+    published_at TEXT,
+    fetched_at TEXT NOT NULL,
+    raw_payload TEXT NOT NULL,
+    dedup_key TEXT NOT NULL UNIQUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_{table_name}_channel_type_time
+ON {table_name}(channel_key, record_type, published_at DESC, record_id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_{table_name}_time
+ON {table_name}(published_at DESC, record_id DESC);
 """

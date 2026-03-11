@@ -72,6 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub_add = sub_subparsers.add_parser("add")
     sub_add.add_argument("source")
     sub_add.add_argument("channel")
+    sub_add.add_argument("--name")
     sub_remove = sub_subparsers.add_parser("remove")
     sub_remove.add_argument("source")
     sub_remove.add_argument("channel")
@@ -185,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         source = registry.build(args.source)
         if args.sub_command == "add":
-            source.subscribe(args.channel)
+            source.subscribe(args.channel, display_name=args.name)
         else:
             source.unsubscribe(args.channel)
         print_subscriptions(store.list_subscriptions(args.source))
@@ -284,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.topic is None:
             print_help_doc(build_global_help_doc())
             return 0
-        if args.topic in {"search", "query", "update"}:
+        if args.topic in {"search", "query", "update", "sub"}:
             print_help_doc(build_command_help_doc(args.topic))
             return 0
         if args.topic in registry.list_names():

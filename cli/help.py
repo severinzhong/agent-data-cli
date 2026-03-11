@@ -83,6 +83,27 @@ COMMAND_HELP: dict[str, HelpDoc] = {
             ),
         ],
     ),
+    "sub": HelpDoc(
+        title="sub",
+        summary="管理本地订阅列表。",
+        sections=[
+            HelpSection(
+                title="语义",
+                lines=[
+                    "sub add/remove/list 都只操作本地数据库。",
+                    "sub add 可用 --name 覆盖默认 display_name。",
+                ],
+            ),
+            HelpSection(
+                title="Examples",
+                lines=[
+                    "dc sub add ashare sh000001 --name 上证指数",
+                    "dc sub remove bbc world",
+                    "dc sub list --source ashare",
+                ],
+            ),
+        ],
+    ),
 }
 
 

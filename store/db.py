@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 
-from core.models import ChannelRecord, ContentRecord, HealthRecord, SourceDescriptor, SubscriptionRecord
+from core.models import (
+    ChannelRecord,
+    ContentRecord,
+    HealthRecord,
+    SourceDescriptor,
+    SourceStorageSpec,
+    SubscriptionRecord,
+)
 from utils.time import utc_now_iso
 
-from .migrations import SCHEMA
+from .migrations import SCHEMA, build_content_table_schema
 from .repositories import (
     row_to_channel,
     row_to_content,
@@ -23,12 +31,32 @@ class Store:
         self.path = path
         self._connection = sqlite3.connect(self.path)
         self._connection.row_factory = sqlite3.Row
+        self._storage_specs: dict[str, SourceStorageSpec] = {}
 
-    def init_schema(self) -> None:
+    def init_schema(self, storage_specs: list[SourceStorageSpec] | None = None) -> None:
+        if storage_specs is not None:
+            self.set_storage_specs(storage_specs)
+        if not self._storage_specs:
+            self.set_storage_specs(self._build_default_storage_specs())
         with self._connect() as connection:
             connection.executescript(SCHEMA)
-        self._ensure_content_record_type_column()
+            for spec in self._storage_specs.values():
+                connection.executescript(build_content_table_schema(spec.table_name))
         self._remove_invalid_content_records()
+
+    def set_storage_specs(self, storage_specs: list[SourceStorageSpec]) -> None:
+        specs_by_source: dict[str, SourceStorageSpec] = {}
+        table_names: set[str] = set()
+        for spec in storage_specs:
+            if spec.source in specs_by_source:
+                raise RuntimeError(f"duplicate storage spec for source: {spec.source}")
+            if not self._is_valid_identifier(spec.table_name):
+                raise RuntimeError(f"invalid storage table name: {spec.table_name}")
+            if spec.table_name in table_names:
+                raise RuntimeError(f"duplicate storage table name: {spec.table_name}")
+            specs_by_source[spec.source] = spec
+            table_names.add(spec.table_name)
+        self._storage_specs = specs_by_source
 
     def upsert_source(self, source: SourceDescriptor) -> None:
         with self._connect() as connection:
@@ -388,10 +416,11 @@ class Store:
 
     def upsert_content(self, record: ContentRecord) -> bool:
         fetched_at = record.fetched_at or utc_now_iso()
+        table_name = self._table_for_source(record.source)
         with self._connect() as connection:
             cursor = connection.execute(
-                """
-                INSERT OR IGNORE INTO content_records (
+                f"""
+                INSERT OR IGNORE INTO {table_name} (
                     source,
                     channel_key,
                     record_type,
@@ -489,8 +518,9 @@ class Store:
         since: str | None = None,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
+        table_name = self._table_for_source(source)
         query = [
-            """
+            f"""
             SELECT
                 source,
                 channel_key,
@@ -504,7 +534,7 @@ class Store:
                 fetched_at,
                 raw_payload,
                 dedup_key
-            FROM content_records
+            FROM {table_name}
             WHERE source = ? AND channel_key = ?
             """
         ]
@@ -541,8 +571,60 @@ class Store:
         limit: int = 10,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
+        targets = self._resolve_query_targets(
+            source=source,
+            channel_key=channel_key,
+            group_name=group_name,
+        )
+        if not targets:
+            return []
+        all_records: list[ContentRecord] = []
+        for source_name, channel_filter in targets.items():
+            all_records.extend(
+                self._query_source_content(
+                    source=source_name,
+                    channel_filter=channel_filter,
+                    record_type=record_type,
+                    since=since,
+                    keywords=keywords,
+                )
+            )
+        all_records.sort(
+            key=lambda record: (
+                record.published_at or "",
+                record.fetched_at or "",
+                record.dedup_key,
+            ),
+            reverse=True,
+        )
+        if fetch_all or limit < 0:
+            return all_records
+        return all_records[:limit]
+
+    def _connect(self) -> sqlite3.Connection:
+        return self._connection
+
+    def _remove_invalid_content_records(self) -> None:
+        for spec in self._storage_specs.values():
+            self._connection.execute(
+                f"""
+                DELETE FROM {spec.table_name}
+                WHERE TRIM(COALESCE(record_type, '')) = ''
+                """
+            )
+
+    def _query_source_content(
+        self,
+        *,
+        source: str,
+        channel_filter: set[str] | None,
+        record_type: str | None,
+        since: str | None,
+        keywords: str | None,
+    ) -> list[ContentRecord]:
+        table_name = self._table_for_source(source)
         query = [
-            """
+            f"""
             SELECT
                 source,
                 channel_key,
@@ -556,29 +638,24 @@ class Store:
                 fetched_at,
                 raw_payload,
                 dedup_key
-            FROM content_records
-            WHERE 1 = 1
+            FROM {table_name}
+            WHERE source = ?
             """
         ]
-        params: list[str | int] = []
-
-        if source is not None:
-            query.append("AND source = ?")
-            params.append(source)
-
-        if channel_key is not None:
-            query.append("AND channel_key = ?")
-            params.append(channel_key)
-
+        params: list[str | int] = [source]
+        if channel_filter is not None:
+            if not channel_filter:
+                return []
+            placeholders = ", ".join("?" for _ in channel_filter)
+            query.append(f"AND channel_key IN ({placeholders})")
+            params.extend(sorted(channel_filter))
         if record_type is not None:
             query.append("AND record_type = ?")
             params.append(record_type)
-
         if since is not None:
             normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
             query.append("AND published_at >= ?")
             params.append(normalized_since)
-
         if keywords is not None:
             keyword = f"%{keywords}%"
             query.append(
@@ -592,53 +669,78 @@ class Store:
                 """
             )
             params.extend([keyword, keyword, keyword, keyword])
-
-        if group_name is not None:
-            members = self.list_group_members(group_name)
-            if not members:
-                return []
-            clauses: list[str] = []
-            source_members = sorted(
-                {member.source for member in members if member.member_type == "source"}
-            )
-            if source_members:
-                placeholders = ", ".join("?" for _ in source_members)
-                clauses.append(f"source IN ({placeholders})")
-                params.extend(source_members)
-            channel_members = [member for member in members if member.member_type == "channel"]
-            for member in channel_members:
-                clauses.append("(source = ? AND channel_key = ?)")
-                params.extend([member.source, member.channel_key or ""])
-            query.append(f"AND ({' OR '.join(clauses)})")
-
         query.append("ORDER BY published_at DESC, record_id DESC")
-
-        if not fetch_all and limit >= 0:
-            query.append("LIMIT ?")
-            params.append(limit)
-
         with self._connect() as connection:
             rows = connection.execute(" ".join(query), params).fetchall()
         return [row_to_content(row) for row in rows]
 
-    def _connect(self) -> sqlite3.Connection:
-        return self._connection
+    def _resolve_query_targets(
+        self,
+        *,
+        source: str | None,
+        channel_key: str | None,
+        group_name: str | None,
+    ) -> dict[str, set[str] | None]:
+        if source is not None:
+            self._require_storage_spec(source)
+        if group_name is None:
+            if source is not None:
+                if channel_key is not None:
+                    return {source: {channel_key}}
+                return {source: None}
+            if channel_key is not None:
+                return {source_name: {channel_key} for source_name in self._storage_specs}
+            return {source_name: None for source_name in self._storage_specs}
 
-    def _ensure_content_record_type_column(self) -> None:
-        columns = {
-            row["name"]
-            for row in self._connection.execute("PRAGMA table_info(content_records)").fetchall()
-        }
-        if "record_type" in columns:
-            return
-        self._connection.execute(
-            "ALTER TABLE content_records ADD COLUMN record_type TEXT NOT NULL DEFAULT ''"
-        )
+        members = self.list_group_members(group_name)
+        if not members:
+            return {}
+        grouped_targets: dict[str, set[str] | None] = {}
+        for member in members:
+            self._require_storage_spec(member.source)
+            if member.member_type == "source":
+                grouped_targets[member.source] = None
+                continue
+            existing = grouped_targets.get(member.source)
+            if existing is None and member.source in grouped_targets:
+                continue
+            if existing is None:
+                existing = set()
+                grouped_targets[member.source] = existing
+            if member.channel_key is not None:
+                existing.add(member.channel_key)
 
-    def _remove_invalid_content_records(self) -> None:
-        self._connection.execute(
-            """
-            DELETE FROM content_records
-            WHERE TRIM(COALESCE(record_type, '')) = ''
-            """
-        )
+        if source is not None:
+            channel_filter = grouped_targets.get(source)
+            if source not in grouped_targets:
+                return {}
+            grouped_targets = {source: channel_filter}
+
+        if channel_key is None:
+            return grouped_targets
+
+        filtered_targets: dict[str, set[str] | None] = {}
+        for source_name, channels in grouped_targets.items():
+            if channels is None:
+                filtered_targets[source_name] = {channel_key}
+                continue
+            if channel_key in channels:
+                filtered_targets[source_name] = {channel_key}
+        return filtered_targets
+
+    def _table_for_source(self, source: str) -> str:
+        return self._require_storage_spec(source).table_name
+
+    def _require_storage_spec(self, source: str) -> SourceStorageSpec:
+        try:
+            return self._storage_specs[source]
+        except KeyError as exc:
+            raise RuntimeError(f"no storage spec registered for source: {source}") from exc
+
+    def _build_default_storage_specs(self) -> list[SourceStorageSpec]:
+        from core.registry import build_default_registry
+
+        return build_default_registry(store=None).list_storage_specs()
+
+    def _is_valid_identifier(self, value: str) -> bool:
+        return re.fullmatch(r"[a-z][a-z0-9_]*", value) is not None

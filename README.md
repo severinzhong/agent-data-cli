@@ -319,6 +319,18 @@ uv run python -m cli query --group middle-east --keywords 伊朗 --limit 20
 data-cli.db
 ```
 
+内容数据按 source 物理隔离存储，当前表为：
+
+- `bbc_records`
+- `hackernews_records`
+- `ashare_records`
+
+说明：
+
+- 不再使用统一的 `content_records` 表
+- `query` 仍是统一入口，但内部按 source 表查询后在 Python 层归并
+- 此次为破坏性重构，旧测试库不做迁移，直接删除 `data-cli.db` 重建
+
 这个文件会保存：
 
 - source 元数据
