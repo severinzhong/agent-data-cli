@@ -1,0 +1,54 @@
+# AGENT
+AGENT.md
+docs
+
+# test
+tests
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test and tool caches
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+
+# Local runtime data
+datacenter.sqlite3
+datacenter.sqlite3-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# Local environment files
+.python-version
+.env
+.env.*
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
