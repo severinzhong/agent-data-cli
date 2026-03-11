@@ -1,16 +1,58 @@
-from urllib.request import Request, urlopen
+from __future__ import annotations
 
-from .base import Fetcher
+import json
+import urllib.request
+
+from .base import default_headers
 
 
-class HttpFetcher(Fetcher):
-    def fetch(self, target: str) -> str:
-        request = Request(
-            target,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
-            },
+class HttpFetcher:
+    def __init__(self, proxy_url: str | None = None) -> None:
+        if proxy_url:
+            handler = urllib.request.ProxyHandler(
+                {"http": proxy_url, "https": proxy_url}
+            )
+        else:
+            handler = urllib.request.ProxyHandler({})
+        self._opener = urllib.request.build_opener(handler)
+
+    def get_bytes(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: int = 30,
+    ) -> bytes:
+        request = urllib.request.Request(url, headers=default_headers(headers))
+        with self._opener.open(request, timeout=timeout) as response:
+            return response.read()
+
+    def get_text(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: int = 30,
+        encoding: str = "utf-8",
+        errors: str = "replace",
+    ) -> str:
+        return self.get_bytes(url, headers=headers, timeout=timeout).decode(
+            encoding,
+            errors=errors,
         )
-        with urlopen(request, timeout=30) as response:
-            encoding = response.headers.get_content_charset() or "utf-8"
-            return response.read().decode(encoding, errors="replace")
+
+    def get_json(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: int = 30,
+        encoding: str = "utf-8",
+    ):
+        body = self.get_text(
+            url,
+            headers=headers,
+            timeout=timeout,
+            encoding=encoding,
+        )
+        return json.loads(body)

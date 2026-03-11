@@ -1,43 +1,37 @@
-import json
+from __future__ import annotations
+
 import asyncio
-from typing import Callable
+import json
 from urllib.request import ProxyHandler, build_opener
 
-from .base import Fetcher
 
-
-class BrowserFetcher(Fetcher):
-    def __init__(
-        self,
-        *,
-        cdp_url: str  = "http://127.0.0.1:9222",
-        wait_ms: int = 1500,
-        renderer: Callable[[str], str] | None = None,
-    ) -> None:
+class BrowserFetcher:
+    def __init__(self, *, cdp_url: str = "http://127.0.0.1:9222", wait_ms: int = 1500) -> None:
         self.cdp_url = cdp_url.rstrip("/")
-        self.collect_cdp_info(self.cdp_url)
         self.wait_ms = wait_ms
-        self.renderer = renderer
-        
-    def collect_cdp_info(self, cdp_url: str):
+        self._collect_cdp_info()
+
+    def _collect_cdp_info(self) -> None:
         opener = build_opener(ProxyHandler({}))
-        with opener.open(f"{cdp_url}/json/version", timeout=5) as response:
+        with opener.open(f"{self.cdp_url}/json/version", timeout=5) as response:
             payload = json.loads(response.read().decode("utf-8"))
-        self.ws_url = payload.get("webSocketDebuggerUrl")
-        self.user_agent = payload.get("User-Agent")
-        self.user_ganet = self.user_agent
+        self.ws_url = payload["webSocketDebuggerUrl"]
+        self.user_agent = payload["User-Agent"]
 
-    def fetch(self, target: str) -> str:
-        return asyncio.run(self._fetch_async(target))
+    def get_text(self, url: str) -> str:
+        return asyncio.run(self._get_text_async(url))
 
-    async def _fetch_async(self, target: str) -> str:
+    def fetch(self, url: str) -> str:
+        return self.get_text(url)
+
+    async def _get_text_async(self, url: str) -> str:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as playwright:
             browser = await playwright.chromium.connect_over_cdp(self.cdp_url)
             context = browser.contexts[0] if browser.contexts else await browser.new_context()
             page = await context.new_page()
-            await page.goto(target, wait_until="domcontentloaded", timeout=45000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=45000)
             if self.wait_ms:
                 await page.wait_for_timeout(self.wait_ms)
             content = await page.content()
