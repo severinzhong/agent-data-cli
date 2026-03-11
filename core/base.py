@@ -166,6 +166,8 @@ class BaseSource:
         resolved_type = record_type
         if resolved_type is None:
             resolved_type = self.get_default_query_record_type()
+        # A since-bound update should pull the full time window.
+        effective_fetch_all = fetch_all or since is not None
         if channel_key is None:
             targets = [item.channel_key for item in self.list_subscriptions()]
         else:
@@ -185,7 +187,7 @@ class BaseSource:
                 record_type=resolved_type,
                 limit=limit,
                 since=since,
-                fetch_all=fetch_all,
+                fetch_all=effective_fetch_all,
             ):
                 if store.upsert_content(record):
                     saved_count += 1
