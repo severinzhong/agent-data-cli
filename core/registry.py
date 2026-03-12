@@ -155,6 +155,7 @@ def build_default_registry(store: Store | None) -> SourceRegistry:
     from sources.hackernews.source import HackerNewsSource
     from sources.rsshub.source import RsshubSource
     from sources.sina_finance_724.source import SinaFinance724Source
+    from sources.wechatarticle.source import WechatArticleSource
 
     registry = SourceRegistry(store=store)
     registry.register(AShareSource)
@@ -162,4 +163,5 @@ def build_default_registry(store: Store | None) -> SourceRegistry:
     registry.register(HackerNewsSource)
     registry.register(RsshubSource)
     registry.register(SinaFinance724Source)
+    registry.register(WechatArticleSource)
     return registry
