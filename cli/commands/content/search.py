@@ -39,14 +39,14 @@ def run_content_search(args, extras: list[str], ctx: CommandContext) -> int:
 
 CONTENT_SEARCH_COMMAND = CommandNodeSpec(
     name="search",
-    summary="远端发现 content，不落库。",
+    summary="Discover remote content without persistence.",
     sections=(
         HelpSection(
-            title="语义",
+            title="Semantics",
             lines=[
-                "--source 必填",
-                "--channel 与 --query 至少提供一个",
-                "是否支持 --since 由 source capability 决定",
+                "--source is required",
+                "At least one of --channel or --query is required",
+                "Whether --since is supported depends on source capability",
             ],
         ),
         HelpSection(

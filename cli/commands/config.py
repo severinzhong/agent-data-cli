@@ -98,22 +98,22 @@ def _validate_config_check_action_id(action_id: str | None) -> None:
 
 CONFIG_COMMAND = CommandNodeSpec(
     name="config",
-    summary="查看和修改 CLI / source 配置。",
+    summary="Inspect and modify CLI or source configuration.",
     child_dest="config_scope",
     children=(
         CommandNodeSpec(
             name="cli",
-            summary="管理 CLI 级配置。",
+            summary="Manage CLI-level configuration.",
             child_dest="config_command",
             children=(
                 CommandNodeSpec(
                     name="list",
-                    summary="列出 CLI 配置。",
+                    summary="List CLI configuration.",
                     run=_run_config_cli_list,
                 ),
                 CommandNodeSpec(
                     name="set",
-                    summary="设置 CLI 配置。",
+                    summary="Set a CLI configuration value.",
                     arg_specs=(
                         CommandArgSpec(names=("key",), value_name="key"),
                         CommandArgSpec(names=("value",), value_name="value"),
@@ -122,13 +122,13 @@ CONFIG_COMMAND = CommandNodeSpec(
                 ),
                 CommandNodeSpec(
                     name="unset",
-                    summary="删除 CLI 配置。",
+                    summary="Unset a CLI configuration value.",
                     arg_specs=(CommandArgSpec(names=("key",), value_name="key"),),
                     run=_run_config_cli_unset,
                 ),
                 CommandNodeSpec(
                     name="explain",
-                    summary="解释 CLI 配置字段。",
+                    summary="Explain a CLI configuration field.",
                     arg_specs=(CommandArgSpec(names=("key",), value_name="key"),),
                     run=_run_config_cli_explain,
                 ),
@@ -136,18 +136,18 @@ CONFIG_COMMAND = CommandNodeSpec(
         ),
         CommandNodeSpec(
             name="source",
-            summary="管理 source 配置。",
+            summary="Manage source configuration.",
             child_dest="config_command",
             children=(
                 CommandNodeSpec(
                     name="list",
-                    summary="列出某个 source 的配置。",
+                    summary="List configuration for a source.",
                     arg_specs=(CommandArgSpec(names=("source",), value_name="source"),),
                     run=_run_config_source_list,
                 ),
                 CommandNodeSpec(
                     name="set",
-                    summary="设置某个 source 的配置。",
+                    summary="Set a source configuration value.",
                     arg_specs=(
                         CommandArgSpec(names=("source",), value_name="source"),
                         CommandArgSpec(names=("key",), value_name="key"),
@@ -157,7 +157,7 @@ CONFIG_COMMAND = CommandNodeSpec(
                 ),
                 CommandNodeSpec(
                     name="unset",
-                    summary="删除某个 source 的配置。",
+                    summary="Unset a source configuration value.",
                     arg_specs=(
                         CommandArgSpec(names=("source",), value_name="source"),
                         CommandArgSpec(names=("key",), value_name="key"),
@@ -166,7 +166,7 @@ CONFIG_COMMAND = CommandNodeSpec(
                 ),
                 CommandNodeSpec(
                     name="explain",
-                    summary="解释某个 source 的配置字段。",
+                    summary="Explain a source configuration field.",
                     arg_specs=(
                         CommandArgSpec(names=("source",), value_name="source"),
                         CommandArgSpec(names=("key",), value_name="key"),
@@ -175,7 +175,7 @@ CONFIG_COMMAND = CommandNodeSpec(
                 ),
                 CommandNodeSpec(
                     name="check",
-                    summary="检查某个 source 的配置状态。",
+                    summary="Check configuration status for a source.",
                     usage_override="config source check <source> [--for <action-id>] [--verb <verb>]",
                     arg_specs=(
                         CommandArgSpec(names=("source",), value_name="source"),

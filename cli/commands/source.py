@@ -23,17 +23,17 @@ def _run_source_health(args, extras: list[str], ctx: CommandContext) -> int:
 
 SOURCE_COMMAND = CommandNodeSpec(
     name="source",
-    summary="查看 source 列表和健康状态。",
+    summary="List and inspect sources.",
     child_dest="source_command",
     children=(
         CommandNodeSpec(
             name="list",
-            summary="列出已注册 source。",
+            summary="List registered sources.",
             run=_run_source_list,
         ),
         CommandNodeSpec(
             name="health",
-            summary="检查某个 source 的健康状态。",
+            summary="Check the health of a source.",
             arg_specs=(CommandArgSpec(names=("source",), value_name="source"),),
             run=_run_source_health,
         ),

@@ -55,7 +55,7 @@ def build_parser():
 def build_global_help_doc():
     return _build_global_help_doc(
         title="data-cli",
-        summary="统一的多信息源内容 CLI。",
+        summary="Unified multi-source content CLI.",
         commands=ROOT_COMMANDS,
         sections=GLOBAL_HELP_SECTIONS,
     )

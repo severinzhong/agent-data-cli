@@ -33,25 +33,25 @@ def _run_channel_search(args, extras: list[str], ctx: CommandContext) -> int:
 
 CHANNEL_COMMAND = CommandNodeSpec(
     name="channel",
-    summary="查看或发现 channel。",
+    summary="List or discover channels.",
     child_dest="channel_command",
     children=(
         CommandNodeSpec(
             name="list",
-            summary="列出某个 source 的内置 channel。",
+            summary="List built-in channels for a source.",
             arg_specs=(CommandArgSpec(names=("source",), value_name="source"),),
             run=_run_channel_list,
         ),
         CommandNodeSpec(
             name="search",
-            summary="远端发现 channel，不落库。",
+            summary="Discover remote channels without persistence.",
             sections=(
                 HelpSection(
-                    title="语义",
+                    title="Semantics",
                     lines=[
-                        "--source 必填",
-                        "--query 必填",
-                        "只返回 channel 结果，不写本地数据库",
+                        "--source is required",
+                        "--query is required",
+                        "Returns channel results only and does not write to the local database",
                     ],
                 ),
                 HelpSection(

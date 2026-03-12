@@ -164,17 +164,17 @@ def _run_single_source_content_update(
 
 CONTENT_UPDATE_COMMAND = CommandNodeSpec(
     name="update",
-    summary="只同步已订阅目标，并落库。",
+    summary="Sync subscribed targets and persist results.",
     usage_override="content update --source <source> ... | content update --group <group> ...",
     sections=(
         HelpSection(
-            title="语义",
+            title="Semantics",
             lines=[
-                "--source 与 --group 二选一",
-                "--channel 只允许跟 --source 组合",
-                "--all 与 --since 互斥",
-                "--all 与 --limit 互斥",
-                "--dry-run 只允许配合 --group",
+                "Exactly one of --source or --group is required",
+                "--channel can only be used with --source",
+                "--all cannot be combined with --since",
+                "--all cannot be combined with --limit",
+                "--dry-run only works with content update --group",
             ],
         ),
         HelpSection(

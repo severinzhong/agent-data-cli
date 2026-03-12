@@ -50,14 +50,14 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
 
 CONTENT_QUERY_COMMAND = CommandNodeSpec(
     name="query",
-    summary="永远只查本地库。",
+    summary="Reads only from the local database.",
     sections=(
         HelpSection(
-            title="语义",
+            title="Semantics",
             lines=[
-                "--keywords 只是本地过滤，不触发远端搜索",
-                "--group 只做本地过滤，不做远端展开",
-                "默认 limit=20，不做 since=>all 的隐式语义",
+                "--keywords is only a local filter and does not trigger remote search",
+                "--group only filters local records and does not trigger remote expansion",
+                "Default limit is 20; --since does not imply --all",
             ],
         ),
         HelpSection(

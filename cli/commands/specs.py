@@ -134,7 +134,7 @@ def build_global_help_doc(
         title=title,
         summary=summary,
         sections=[
-            HelpSection(title="命令速览", lines=_collect_leaf_usage_lines(commands)),
+            HelpSection(title="Command Overview", lines=_collect_leaf_usage_lines(commands)),
             *list(sections),
         ],
     )

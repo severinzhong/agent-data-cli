@@ -60,35 +60,35 @@ def _run_group_remove_channel(args, extras: list[str], ctx: CommandContext) -> i
 
 GROUP_COMMAND = CommandNodeSpec(
     name="group",
-    summary="管理本地分组。",
+    summary="Manage local groups.",
     child_dest="group_command",
     children=(
         CommandNodeSpec(
             name="create",
-            summary="创建分组。",
+            summary="Create a group.",
             arg_specs=(CommandArgSpec(names=("group",), value_name="group"),),
             run=_run_group_create,
         ),
         CommandNodeSpec(
             name="delete",
-            summary="删除分组。",
+            summary="Delete a group.",
             arg_specs=(CommandArgSpec(names=("group",), value_name="group"),),
             run=_run_group_delete,
         ),
         CommandNodeSpec(
             name="list",
-            summary="列出分组。",
+            summary="List groups.",
             run=_run_group_list,
         ),
         CommandNodeSpec(
             name="show",
-            summary="查看分组成员。",
+            summary="Show group members.",
             arg_specs=(CommandArgSpec(names=("group",), value_name="group"),),
             run=_run_group_show,
         ),
         CommandNodeSpec(
             name="add-source",
-            summary="向分组添加 source。",
+            summary="Add a source to a group.",
             arg_specs=(
                 CommandArgSpec(names=("group",), value_name="group"),
                 CommandArgSpec(names=("source",), value_name="source"),
@@ -97,7 +97,7 @@ GROUP_COMMAND = CommandNodeSpec(
         ),
         CommandNodeSpec(
             name="add-channel",
-            summary="向分组添加 channel。",
+            summary="Add a channel to a group.",
             arg_specs=(
                 CommandArgSpec(names=("group",), value_name="group"),
                 CommandArgSpec(names=("source",), value_name="source"),
@@ -107,7 +107,7 @@ GROUP_COMMAND = CommandNodeSpec(
         ),
         CommandNodeSpec(
             name="remove-source",
-            summary="从分组删除 source。",
+            summary="Remove a source from a group.",
             arg_specs=(
                 CommandArgSpec(names=("group",), value_name="group"),
                 CommandArgSpec(names=("source",), value_name="source"),
@@ -116,7 +116,7 @@ GROUP_COMMAND = CommandNodeSpec(
         ),
         CommandNodeSpec(
             name="remove-channel",
-            summary="从分组删除 channel。",
+            summary="Remove a channel from a group.",
             arg_specs=(
                 CommandArgSpec(names=("group",), value_name="group"),
                 CommandArgSpec(names=("source",), value_name="source"),

@@ -46,15 +46,15 @@ def run_content_interact(args, extras: list[str], ctx: CommandContext) -> int:
 
 CONTENT_INTERACT_COMMAND = CommandNodeSpec(
     name="interact",
-    summary="显式远端副作用操作。",
+    summary="Run explicit remote side effects.",
     sections=(
         HelpSection(
-            title="语义",
+            title="Semantics",
             lines=[
-                "--source 必填",
-                "--verb 必填",
-                "--ref 至少一个",
-                "所有 ref 必须属于同一 source",
+                "--source is required",
+                "--verb is required",
+                "At least one --ref is required",
+                "All refs must belong to the same source",
             ],
         ),
         HelpSection(
