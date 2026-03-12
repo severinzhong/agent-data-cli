@@ -81,9 +81,11 @@ def build_default_registry(store: Store | None) -> SourceRegistry:
     from sources.ashare.source import AShareSource
     from sources.bbc.source import BbcSource
     from sources.hackernews.source import HackerNewsSource
+    from sources.sina_finance_724.source import SinaFinance724Source
 
     registry = SourceRegistry(store=store)
     registry.register(AShareSource)
     registry.register(BbcSource)
     registry.register(HackerNewsSource)
+    registry.register(SinaFinance724Source)
     return registry
