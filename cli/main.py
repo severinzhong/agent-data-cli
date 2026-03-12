@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from cli.formatters import (
     build_content_json_rows,
@@ -139,14 +140,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.source_command == "list":
             print_sources(registry.list_descriptors())
             return 0
-        source = registry.build(args.source)
+        source = registry.build(args.source, capability="health")
         health = source.health()
         store.save_health(health)
         print_health(health)
         return 0
 
     if args.command == "channel":
-        source = registry.build(args.source)
+        source = registry.build(args.source, capability="channel")
         print_channels(source.list_channels())
         return 0
 
@@ -181,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
     if args.command == "search":
-        source = registry.build(args.source)
+        source = registry.build(args.source, capability="search")
         results = source.search(args.query, channel=args.channel, limit=args.limit)
         if args.jsonl:
             print_jsonl_rows(build_search_json_rows(results, view_getter=source.get_search_view))
@@ -193,10 +194,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.sub_command == "list":
             print_subscriptions(store.list_subscriptions(args.source))
             return 0
-        source = registry.build(args.source)
         if args.sub_command == "add":
+            source = registry.build(args.source, capability="subscribe")
             source.subscribe(args.channel, display_name=args.name)
         else:
+            source = registry.build(args.source, capability="unsubscribe")
             source.unsubscribe(args.channel)
         print_subscriptions(store.list_subscriptions(args.source))
         return 0
@@ -218,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             summaries = []
             for source_name, channel_key, record_type in targets:
-                source = registry.build(source_name)
+                source = registry.build(source_name, capability="update")
                 summaries.append(
                     source.update(
                         channel_key=channel_key,
@@ -234,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.source:
             raise RuntimeError("update requires a source or --group")
 
-        source = registry.build(args.source or "")
+        source = registry.build(args.source or "", capability="update")
         summary = source.update(
             channel_key=args.channel,
             record_type=args.record_type,
@@ -257,7 +259,7 @@ def main(argv: list[str] | None = None) -> int:
         query_limit = args.limit if args.limit is not None else 10
         query_fetch_all = args.fetch_all or (args.since is not None and args.limit is None)
         if source_name and record_type is None:
-            source = registry.build(source_name)
+            source = registry.build(source_name, capability="query")
             record_type = source.get_default_query_record_type()
         records = store.query_content(
             source=source_name,
@@ -270,7 +272,10 @@ def main(argv: list[str] | None = None) -> int:
             fetch_all=query_fetch_all,
         )
         view_map = {
-            (record.source, record.record_type): registry.build(record.source).get_query_view(record.record_type)
+            (record.source, record.record_type): registry.build(
+                record.source,
+                capability="query",
+            ).get_query_view(record.record_type)
             for record in records
         }
         if args.jsonl:
@@ -315,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
             print_help_doc(build_command_help_doc(args.topic))
             return 0
         if args.topic in registry.list_names():
-            print_help_doc(build_source_help_doc(registry.build(args.topic)))
+            print_help_doc(build_source_help_doc(registry.build(args.topic, capability="help")))
             return 0
         raise RuntimeError(f"unknown help topic: {args.topic}")
 
@@ -323,7 +328,11 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def console_main() -> None:
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (RuntimeError, SourceConfigError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 if __name__ == "__main__":

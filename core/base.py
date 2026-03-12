@@ -54,6 +54,33 @@ class BaseSource:
             )
         ]
 
+    @classmethod
+    def capability_config_requirements(cls) -> dict[str, tuple[str, ...]]:
+        required = tuple(spec.key for spec in cls.config_spec() if spec.required)
+        return {
+            "health": required,
+            "channel": required,
+            "search": required,
+            "subscribe": required,
+            "unsubscribe": (),
+            "update": required,
+            "query": required,
+            "help": (),
+        }
+
+    @classmethod
+    def required_config_keys_for_capability(cls, capability: str) -> tuple[str, ...]:
+        requirements = cls.capability_config_requirements()
+        raw_keys = requirements.get(capability, ())
+        declared_keys = {spec.key for spec in cls.config_spec()}
+        keys: list[str] = []
+        for key in raw_keys:
+            if key not in declared_keys:
+                raise SourceConfigError(f"unknown config key in capability requirement: {cls.name}.{key}")
+            if key not in keys:
+                keys.append(key)
+        return tuple(keys)
+
     def describe(self) -> SourceDescriptor:
         return SourceDescriptor(
             name=self.name,

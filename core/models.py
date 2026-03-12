@@ -13,6 +13,10 @@ class SourceDescriptor:
     supports_subscriptions: bool
     supports_updates: bool
     supports_query: bool
+    search_missing_required_configs: tuple[str, ...] = ()
+    subscribe_missing_required_configs: tuple[str, ...] = ()
+    update_missing_required_configs: tuple[str, ...] = ()
+    query_missing_required_configs: tuple[str, ...] = ()
     required_config_ok: bool = True
     missing_required_configs: tuple[str, ...] = ()
 

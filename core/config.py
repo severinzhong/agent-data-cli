@@ -92,16 +92,26 @@ def resolve_source_config(
     source: str,
     specs: list[ConfigFieldSpec],
     entries: dict[str, SourceConfigEntry],
+    required_keys: tuple[str, ...] | None = None,
 ) -> ResolvedSourceConfig:
+    spec_keys = {spec.key for spec in specs}
+    if required_keys is None:
+        required_keys = tuple(spec.key for spec in specs if spec.required)
+    unknown_required = [key for key in required_keys if key not in spec_keys]
+    if unknown_required:
+        raise SourceConfigError(
+            f"unknown required config keys for {source}: {','.join(unknown_required)}"
+        )
     for spec in specs:
         entry = entries.get(spec.key)
-        if spec.required and entry is None:
-            raise SourceConfigError(f"missing required config: {source}.{spec.key}")
         if entry is not None and entry.value_type != spec.value_type:
             raise SourceConfigError(
                 f"config type mismatch for {source}.{spec.key}: "
                 f"expected {spec.value_type}, got {entry.value_type}"
             )
+    for key in required_keys:
+        if key not in entries:
+            raise SourceConfigError(f"missing required config: {source}.{key}")
     return ResolvedSourceConfig(source=source, entries=entries)
 
 

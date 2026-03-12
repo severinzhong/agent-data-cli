@@ -35,35 +35,31 @@ def _new_table() -> Table:
     )
 
 
-def _bool_mark(value: bool) -> str:
-    return "✅" if value else "❌"
-
-
-def _config_status(item: SourceDescriptor) -> str:
-    if item.required_config_ok:
+def _capability_status(enabled: bool, missing_required_configs: tuple[str, ...]) -> str:
+    if not enabled:
+        return "❌"
+    if not missing_required_configs:
         return "✅"
-    missing = ",".join(item.missing_required_configs)
-    return f"⚠ missing: {missing}"
+    missing = ",".join(missing_required_configs)
+    return f"⚠️ {missing}"
 
 
 def render_sources_table(items: list[SourceDescriptor]) -> Table:
     table = _new_table()
     table.add_column("source", overflow="ellipsis")
     table.add_column("display_name", overflow="ellipsis")
-    table.add_column("config", overflow="ellipsis", max_width=28)
-    table.add_column("search", justify="right")
-    table.add_column("subscribe", justify="right")
-    table.add_column("update", justify="right")
-    table.add_column("query", justify="right")
+    table.add_column("search", overflow="ellipsis", no_wrap=True, max_width=24)
+    table.add_column("subscribe", overflow="ellipsis", no_wrap=True, max_width=24)
+    table.add_column("update", overflow="ellipsis", no_wrap=True, max_width=24)
+    table.add_column("query", overflow="ellipsis", no_wrap=True, max_width=24)
     for item in items:
         table.add_row(
             item.name,
             item.display_name,
-            _config_status(item),
-            _bool_mark(item.supports_search),
-            _bool_mark(item.supports_subscriptions),
-            _bool_mark(item.supports_updates),
-            _bool_mark(item.supports_query),
+            _capability_status(item.supports_search, item.search_missing_required_configs),
+            _capability_status(item.supports_subscriptions, item.subscribe_missing_required_configs),
+            _capability_status(item.supports_updates, item.update_missing_required_configs),
+            _capability_status(item.supports_query, item.query_missing_required_configs),
         )
     return table
 
