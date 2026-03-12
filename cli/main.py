@@ -24,6 +24,7 @@ from cli.help import build_command_help_doc, build_global_help_doc, build_source
 from core.config import SourceConfigError
 from core.registry import build_default_registry
 from store.db import Store
+from utils.time import parse_since_expr, since_datetime_to_iso, since_datetime_to_yyyymmdd
 
 
 DEFAULT_DB_PATH = "data-cli.db"
@@ -201,6 +202,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "update":
+        since_for_update: str | None = None
+        if args.since is not None:
+            try:
+                since_for_update = since_datetime_to_yyyymmdd(parse_since_expr(args.since))
+            except ValueError as exc:
+                raise RuntimeError(f"invalid --since value: {args.since}") from exc
         if args.group:
             targets = [
                 (source_name, channel_key, args.record_type)
@@ -217,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
                         channel_key=channel_key,
                         record_type=record_type,
                         limit=args.limit,
-                        since=args.since,
+                        since=since_for_update,
                         fetch_all=args.fetch_all,
                     )
                 )
@@ -232,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
             channel_key=args.channel,
             record_type=args.record_type,
             limit=args.limit,
-            since=args.since,
+            since=since_for_update,
             fetch_all=args.fetch_all,
         )
         print_update_summary(summary)
@@ -241,6 +248,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "query":
         source_name = args.source
         record_type = args.record_type
+        since_for_query: str | None = None
+        if args.since is not None:
+            try:
+                since_for_query = since_datetime_to_iso(parse_since_expr(args.since))
+            except ValueError as exc:
+                raise RuntimeError(f"invalid --since value: {args.since}") from exc
         query_limit = args.limit if args.limit is not None else 10
         query_fetch_all = args.fetch_all or (args.since is not None and args.limit is None)
         if source_name and record_type is None:
@@ -251,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
             channel_key=args.channel,
             group_name=args.group,
             record_type=record_type,
-            since=args.since,
+            since=since_for_query,
             keywords=args.keywords,
             limit=query_limit,
             fetch_all=query_fetch_all,

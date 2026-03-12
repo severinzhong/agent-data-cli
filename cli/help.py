@@ -15,6 +15,7 @@ COMMAND_HELP: dict[str, HelpDoc] = {
                 lines=[
                     "query 永远只读取本地数据库。",
                     "--keywords 只是过滤条件，不会触发远端搜索。",
+                    "--since 支持 YYYYMMDD 或相对时间: 1w/1d/3h/5m。",
                     "--since 且未显式传 --limit 时，默认等价于 --all。",
                     "默认按 published_at 从新到旧排序。",
                 ],
@@ -39,6 +40,7 @@ COMMAND_HELP: dict[str, HelpDoc] = {
                     "dc query --source bbc --limit 20",
                     "dc query --group middle-east --keywords 伊朗 --limit 20",
                     "dc query --source ashare --channel sh600519 --limit 30",
+                    "dc query --source bbc --since 3h --jsonl",
                 ],
             ),
         ],
@@ -81,6 +83,7 @@ COMMAND_HELP: dict[str, HelpDoc] = {
                 lines=[
                     "支持单 source/channel 更新。",
                     "支持 --group 批量更新。",
+                    "--since 支持 YYYYMMDD 或相对时间: 1w/1d/3h/5m。",
                     "--dry-run 只展示将要执行的具体目标。",
                 ],
             ),

@@ -545,8 +545,10 @@ class Store:
             params.append(record_type)
 
         if since is not None:
-            normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
-            query.append("AND published_at >= ?")
+            normalized_since = since
+            if len(since) == 8 and since.isdigit():
+                normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
+            query.append("AND julianday(published_at) >= julianday(?)")
             params.append(normalized_since)
 
         query.append("ORDER BY published_at DESC, record_id DESC")
@@ -653,8 +655,10 @@ class Store:
             query.append("AND record_type = ?")
             params.append(record_type)
         if since is not None:
-            normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
-            query.append("AND published_at >= ?")
+            normalized_since = since
+            if len(since) == 8 and since.isdigit():
+                normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
+            query.append("AND julianday(published_at) >= julianday(?)")
             params.append(normalized_since)
         if keywords is not None:
             keyword = f"%{keywords}%"
