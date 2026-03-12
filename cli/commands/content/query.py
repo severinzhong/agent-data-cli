@@ -51,7 +51,6 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
 CONTENT_QUERY_COMMAND = CommandNodeSpec(
     name="query",
     summary="永远只查本地库。",
-    command_line="content query [--source <source>] [--channel <channel>] [--group <group>] ...",
     sections=(
         HelpSection(
             title="语义",

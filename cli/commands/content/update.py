@@ -165,7 +165,7 @@ def _run_single_source_content_update(
 CONTENT_UPDATE_COMMAND = CommandNodeSpec(
     name="update",
     summary="只同步已订阅目标，并落库。",
-    command_line="content update --source <source> ... | content update --group <group> ...",
+    usage_override="content update --source <source> ... | content update --group <group> ...",
     sections=(
         HelpSection(
             title="语义",

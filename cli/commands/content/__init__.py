@@ -11,7 +11,6 @@ from cli.commands.specs import CommandNodeSpec
 CONTENT_COMMAND = CommandNodeSpec(
     name="content",
     summary="统一内容操作入口。",
-    command_line="content ...",
     child_dest="content_command",
     children=(
         CONTENT_SEARCH_COMMAND,

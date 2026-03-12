@@ -27,7 +27,6 @@ def make_help_command(
     return CommandNodeSpec(
         name="help",
         summary="查看全局帮助、命令帮助或 source 帮助。",
-        command_line="help ...",
         sections=(
             HelpSection(
                 title="Examples",

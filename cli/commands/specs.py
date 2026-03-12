@@ -49,7 +49,7 @@ class CommandArgSpec:
         if self.is_positional:
             if self.value_name is None:
                 return self.names[0]
-            return f"{self.names[0]} <{self.value_name}>"
+            return f"<{self.value_name}>"
         flag = self.names[0]
         if self.action == "store_true":
             rendered = flag
@@ -70,7 +70,7 @@ class CommandArgSpec:
 class CommandNodeSpec:
     name: str
     summary: str
-    command_line: str
+    usage_override: str | None = None
     sections: tuple[HelpSection, ...] = ()
     arg_specs: tuple[CommandArgSpec, ...] = ()
     run: CommandRunner | None = None
@@ -86,6 +86,16 @@ class CommandNodeSpec:
             raise ValueError(f"group command cannot define run handler: {self.name}")
         if not self.children and self.run is None:
             raise ValueError(f"leaf command must define run handler: {self.name}")
+
+    def usage_line(self, parent_path: tuple[str, ...] = ()) -> str:
+        if self.usage_override is not None:
+            return self.usage_override
+        base = " ".join((*parent_path, self.name)).strip()
+        if self.children:
+            return f"{base} ..."
+        if not self.arg_specs:
+            return base
+        return " ".join([base, *[arg.help_line() for arg in self.arg_specs]])
 
 
 def build_root_parser(commands: tuple[CommandNodeSpec, ...]) -> argparse.ArgumentParser:
@@ -124,7 +134,7 @@ def build_global_help_doc(
         title=title,
         summary=summary,
         sections=[
-            HelpSection(title="命令速览", lines=[command.command_line for command in commands]),
+            HelpSection(title="命令速览", lines=_collect_leaf_usage_lines(commands)),
             *list(sections),
         ],
     )
@@ -137,7 +147,7 @@ def build_command_help_doc(commands: tuple[CommandNodeSpec, ...], topic: str) ->
     node = resolve_topic_node(commands, tokens)
     sections: list[HelpSection] = []
     if node.children:
-        sections.append(HelpSection(title="Commands", lines=[child.command_line for child in node.children]))
+        sections.append(HelpSection(title="Commands", lines=[child.usage_line(tokens) for child in node.children]))
     elif node.arg_specs:
         sections.append(HelpSection(title="Arguments", lines=[arg.help_line() for arg in node.arg_specs]))
     sections.extend(node.sections)
@@ -185,3 +195,17 @@ def _attach_node(
 
 def _dest_name(path: tuple[str, ...]) -> str:
     return "__" + "_".join(path) + "_command"
+
+
+def _collect_leaf_usage_lines(
+    commands: tuple[CommandNodeSpec, ...],
+    parent_path: tuple[str, ...] = (),
+) -> list[str]:
+    lines: list[str] = []
+    for command in commands:
+        current_path = parent_path + (command.name,)
+        if command.children:
+            lines.extend(_collect_leaf_usage_lines(command.children, current_path))
+            continue
+        lines.append(command.usage_line(parent_path))
+    return lines

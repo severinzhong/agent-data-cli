@@ -29,13 +29,11 @@ def _run_sub_list(args, extras: list[str], ctx: CommandContext) -> int:
 SUB_COMMAND = CommandNodeSpec(
     name="sub",
     summary="管理本地订阅。",
-    command_line="sub ...",
     child_dest="sub_command",
     children=(
         CommandNodeSpec(
             name="add",
             summary="添加订阅。",
-            command_line="sub add --source <source> --channel <channel> [--name <name>]",
             arg_specs=(
                 CommandArgSpec(names=("--source",), value_name="source", required=True),
                 CommandArgSpec(names=("--channel",), value_name="channel", required=True),
@@ -46,7 +44,6 @@ SUB_COMMAND = CommandNodeSpec(
         CommandNodeSpec(
             name="remove",
             summary="删除订阅。",
-            command_line="sub remove --source <source> --channel <channel>",
             arg_specs=(
                 CommandArgSpec(names=("--source",), value_name="source", required=True),
                 CommandArgSpec(names=("--channel",), value_name="channel", required=True),
@@ -56,7 +53,6 @@ SUB_COMMAND = CommandNodeSpec(
         CommandNodeSpec(
             name="list",
             summary="列出订阅。",
-            command_line="sub list [--source <source>]",
             arg_specs=(CommandArgSpec(names=("--source",), value_name="source"),),
             run=_run_sub_list,
         ),

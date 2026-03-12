@@ -40,7 +40,6 @@ def run_content_search(args, extras: list[str], ctx: CommandContext) -> int:
 CONTENT_SEARCH_COMMAND = CommandNodeSpec(
     name="search",
     summary="远端发现 content，不落库。",
-    command_line="content search --source <source> [--channel <channel>] [--query <query>] [--since <since>] [--limit <n>] [--jsonl]",
     sections=(
         HelpSection(
             title="语义",

@@ -47,7 +47,6 @@ def run_content_interact(args, extras: list[str], ctx: CommandContext) -> int:
 CONTENT_INTERACT_COMMAND = CommandNodeSpec(
     name="interact",
     summary="显式远端副作用操作。",
-    command_line="content interact --source <source> --verb <verb> --ref <content_ref> ...",
     sections=(
         HelpSection(
             title="语义",

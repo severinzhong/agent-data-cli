@@ -34,20 +34,17 @@ def _run_channel_search(args, extras: list[str], ctx: CommandContext) -> int:
 CHANNEL_COMMAND = CommandNodeSpec(
     name="channel",
     summary="查看或发现 channel。",
-    command_line="channel ...",
     child_dest="channel_command",
     children=(
         CommandNodeSpec(
             name="list",
             summary="列出某个 source 的内置 channel。",
-            command_line="channel list <source>",
             arg_specs=(CommandArgSpec(names=("source",), value_name="source"),),
             run=_run_channel_list,
         ),
         CommandNodeSpec(
             name="search",
             summary="远端发现 channel，不落库。",
-            command_line="channel search --source <source> --query <query> [--limit <n>] [--jsonl]",
             sections=(
                 HelpSection(
                     title="语义",
