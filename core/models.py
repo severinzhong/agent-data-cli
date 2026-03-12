@@ -13,6 +13,8 @@ class SourceDescriptor:
     supports_subscriptions: bool
     supports_updates: bool
     supports_query: bool
+    required_config_ok: bool = True
+    missing_required_configs: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)

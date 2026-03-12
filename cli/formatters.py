@@ -39,10 +39,18 @@ def _bool_mark(value: bool) -> str:
     return "✅" if value else "❌"
 
 
+def _config_status(item: SourceDescriptor) -> str:
+    if item.required_config_ok:
+        return "✅"
+    missing = ",".join(item.missing_required_configs)
+    return f"⚠ missing: {missing}"
+
+
 def render_sources_table(items: list[SourceDescriptor]) -> Table:
     table = _new_table()
     table.add_column("source", overflow="ellipsis")
     table.add_column("display_name", overflow="ellipsis")
+    table.add_column("config", overflow="ellipsis", max_width=28)
     table.add_column("search", justify="right")
     table.add_column("subscribe", justify="right")
     table.add_column("update", justify="right")
@@ -51,6 +59,7 @@ def render_sources_table(items: list[SourceDescriptor]) -> Table:
         table.add_row(
             item.name,
             item.display_name,
+            _config_status(item),
             _bool_mark(item.supports_search),
             _bool_mark(item.supports_subscriptions),
             _bool_mark(item.supports_updates),

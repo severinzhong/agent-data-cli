@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.config import ConfigFieldSpec, SourceConfigError, build_config_check_items, resolve_source_config
-from core.models import SourceStorageSpec
+from core.models import SourceDescriptor, SourceStorageSpec
 from store.db import Store
 
 from .base import BaseSource
@@ -29,7 +29,24 @@ class SourceRegistry:
         return sorted(self._source_classes)
 
     def list_descriptors(self):
-        return [self.build(name).describe() for name in self.list_names()]
+        descriptors = []
+        for name in self.list_names():
+            source_class = self._source_classes[name]
+            missing_required = self._get_missing_required_config_keys(source_class)
+            descriptors.append(
+                SourceDescriptor(
+                    name=source_class.name,
+                    display_name=source_class.display_name,
+                    description=source_class.description,
+                    supports_search=source_class.supports_search,
+                    supports_subscriptions=source_class.supports_subscriptions,
+                    supports_updates=source_class.supports_updates,
+                    supports_query=source_class.supports_query,
+                    required_config_ok=len(missing_required) == 0,
+                    missing_required_configs=tuple(missing_required),
+                )
+            )
+        return descriptors
 
     def get_storage_spec(self, name: str) -> SourceStorageSpec:
         return self.build(name).get_storage_spec()
@@ -75,6 +92,12 @@ class SourceRegistry:
             specs=source_class.config_spec(),
             entries=entries,
         )
+
+    def _get_missing_required_config_keys(self, source_class: type[BaseSource]) -> list[str]:
+        entries = {}
+        if self.store is not None:
+            entries = self.store.get_source_config_map(source_class.name)
+        return [spec.key for spec in source_class.config_spec() if spec.required and spec.key not in entries]
 
 
 def build_default_registry(store: Store | None) -> SourceRegistry:
