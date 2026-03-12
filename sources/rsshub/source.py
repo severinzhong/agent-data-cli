@@ -32,6 +32,16 @@ class RsshubSource(BaseSource):
     supports_search = True
     supports_updates = True
     supports_query = True
+    DEFAULT_BASE_URL = "https://rsshub.isrss.com"
+    # Alternative public instances (manual switch only, no auto fallback):
+    # DEFAULT_BASE_URL = "https://rsshub.ktachibana.party"
+    # DEFAULT_BASE_URL = "https://rsshub.cups.moe"
+    # DEFAULT_BASE_URL = "https://rsshub.umzzz.com"
+    DEFAULT_ROUTES_JSON_URL = (
+        "https://raw.githubusercontent.com/RSSNext/rsshub-docs/main/src/public/routes.json"
+    )
+    # Alternative route index source (manual switch):
+    # DEFAULT_ROUTES_JSON_URL = "file:///absolute/path/to/rsshub-routes.json"
 
     @classmethod
     def config_spec(cls) -> list[ConfigFieldSpec]:
@@ -41,25 +51,32 @@ class RsshubSource(BaseSource):
                 value_type="string",
                 required=False,
                 secret=False,
-                description="RSSHub instance base URL, e.g. http://127.0.0.1:1200",
+                description=(
+                    f"RSSHub instance base URL (default: {cls.DEFAULT_BASE_URL}), "
+                    "e.g. http://127.0.0.1:1200"
+                ),
             ),
             ConfigFieldSpec(
                 key="routes_json_url",
                 value_type="string",
                 required=False,
                 secret=False,
-                description="Route index URL, e.g. https://docs.rsshub.app/routes.json",
+                description=(
+                    "Route index URL "
+                    f"(default: {cls.DEFAULT_ROUTES_JSON_URL}), "
+                    "e.g. https://docs.rsshub.app/routes.json"
+                ),
             ),
         ]
 
     @classmethod
     def capability_config_requirements(cls) -> dict[str, tuple[str, ...]]:
         requirements = super().capability_config_requirements()
-        requirements["health"] = ("routes_json_url",)
-        requirements["channel"] = ("base_url", "routes_json_url")
-        requirements["search"] = ("base_url", "routes_json_url")
-        requirements["subscribe"] = ("base_url",)
-        requirements["update"] = ("base_url",)
+        requirements["health"] = ()
+        requirements["channel"] = ()
+        requirements["search"] = ()
+        requirements["subscribe"] = ()
+        requirements["update"] = ()
         requirements["query"] = ()
         return requirements
 
@@ -463,9 +480,19 @@ class RsshubSource(BaseSource):
 
     def _require_config_string(self, key: str) -> str:
         value = self.config.get(key)
-        if not isinstance(value, str) or not value.strip():
-            raise SourceConfigError(f"missing required config: {self.name}.{key}")
-        return value.strip()
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        default_value = self._default_config_value(key)
+        if default_value is not None:
+            return default_value
+        raise SourceConfigError(f"missing required config: {self.name}.{key}")
+
+    def _default_config_value(self, key: str) -> str | None:
+        if key == "base_url":
+            return self.DEFAULT_BASE_URL
+        if key == "routes_json_url":
+            return self.DEFAULT_ROUTES_JSON_URL
+        return None
 
     def _looks_like_template(self, channel_key: str) -> bool:
         return _TEMPLATE_TOKEN_RE.search(channel_key) is not None
