@@ -15,6 +15,7 @@ COMMAND_HELP: dict[str, HelpDoc] = {
                 lines=[
                     "query 永远只读取本地数据库。",
                     "--keywords 只是过滤条件，不会触发远端搜索。",
+                    "--since 且未显式传 --limit 时，默认等价于 --all。",
                     "默认按 published_at 从新到旧排序。",
                 ],
             ),

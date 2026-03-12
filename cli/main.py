@@ -99,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     query_parser.add_argument("--group")
     query_parser.add_argument("--keywords")
     query_parser.add_argument("--type", dest="record_type")
-    query_parser.add_argument("--limit", type=int, default=10)
+    query_parser.add_argument("--limit", type=int)
     query_parser.add_argument("--all", dest="fetch_all", action="store_true")
     query_parser.add_argument("--since")
     query_parser.add_argument("--jsonl", action="store_true")
@@ -241,6 +241,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "query":
         source_name = args.source
         record_type = args.record_type
+        query_limit = args.limit if args.limit is not None else 10
+        query_fetch_all = args.fetch_all or (args.since is not None and args.limit is None)
         if source_name and record_type is None:
             source = registry.build(source_name)
             record_type = source.get_default_query_record_type()
@@ -251,8 +253,8 @@ def main(argv: list[str] | None = None) -> int:
             record_type=record_type,
             since=args.since,
             keywords=args.keywords,
-            limit=args.limit,
-            fetch_all=args.fetch_all,
+            limit=query_limit,
+            fetch_all=query_fetch_all,
         )
         view_map = {
             (record.source, record.record_type): registry.build(record.source).get_query_view(record.record_type)
