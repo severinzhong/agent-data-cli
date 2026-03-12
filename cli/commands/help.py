@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import argparse
 from typing import Callable
 
-from cli.commands.specs import CommandContext, CommandNodeSpec
+from cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
 from cli.help import build_source_help_doc, print_help_doc
 from core.help import HelpDoc, HelpSection
 
@@ -13,10 +12,7 @@ def make_help_command(
     build_global_help_doc: Callable[[], HelpDoc],
     build_command_help_doc: Callable[[str], HelpDoc],
 ) -> CommandNodeSpec:
-    def _add_help_args(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("topic", nargs="*")
-
-    def _run_help(args: argparse.Namespace, extras: list[str], ctx: CommandContext) -> int:
+    def _run_help(args, extras: list[str], ctx: CommandContext) -> int:
         _ = extras
         topic = " ".join(args.topic or []).strip()
         if not topic:
@@ -44,6 +40,6 @@ def make_help_command(
                 ],
             ),
         ),
-        configure_parser=_add_help_args,
+        arg_specs=(CommandArgSpec(names=("topic",), nargs="*", dest="topic"),),
         run=_run_help,
     )

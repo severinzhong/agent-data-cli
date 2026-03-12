@@ -1,23 +1,17 @@
 from __future__ import annotations
 
-import argparse
-
 from cli.formatters import print_health, print_sources
 from cli.commands.common import require_action
-from cli.commands.specs import CommandContext, CommandNodeSpec
+from cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
 
 
-def _add_source_health_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("source")
-
-
-def _run_source_list(args: argparse.Namespace, extras: list[str], ctx: CommandContext) -> int:
+def _run_source_list(args, extras: list[str], ctx: CommandContext) -> int:
     _ = args, extras
     print_sources(ctx.registry.list_descriptors())
     return 0
 
 
-def _run_source_health(args: argparse.Namespace, extras: list[str], ctx: CommandContext) -> int:
+def _run_source_health(args, extras: list[str], ctx: CommandContext) -> int:
     _ = extras
     source = ctx.registry.build(args.source)
     require_action(ctx.registry, args.source, "source.health")
@@ -43,7 +37,7 @@ SOURCE_COMMAND = CommandNodeSpec(
             name="health",
             summary="检查某个 source 的健康状态。",
             command_line="source health <source>",
-            configure_parser=_add_source_health_args,
+            arg_specs=(CommandArgSpec(names=("source",), value_name="source"),),
             run=_run_source_health,
         ),
     ),

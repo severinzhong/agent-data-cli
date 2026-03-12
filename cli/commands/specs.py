@@ -22,12 +22,57 @@ class CommandContext:
 
 
 @dataclass(slots=True)
+class CommandArgSpec:
+    names: tuple[str, ...]
+    value_name: str | None = None
+    required: bool = False
+    action: str | None = None
+    dest: str | None = None
+    nargs: str | int | None = None
+    type: object | None = None
+
+    def add_to_parser(self, parser: argparse.ArgumentParser) -> None:
+        kwargs: dict[str, object] = {}
+        if self.required and not self.is_positional:
+            kwargs["required"] = True
+        if self.action is not None:
+            kwargs["action"] = self.action
+        if self.dest is not None and not self.is_positional:
+            kwargs["dest"] = self.dest
+        if self.nargs is not None:
+            kwargs["nargs"] = self.nargs
+        if self.type is not None:
+            kwargs["type"] = self.type
+        parser.add_argument(*self.names, **kwargs)
+
+    def help_line(self) -> str:
+        if self.is_positional:
+            if self.value_name is None:
+                return self.names[0]
+            return f"{self.names[0]} <{self.value_name}>"
+        flag = self.names[0]
+        if self.action == "store_true":
+            rendered = flag
+        elif self.value_name is not None:
+            rendered = f"{flag} <{self.value_name}>"
+        else:
+            rendered = flag
+        if self.required:
+            return rendered
+        return f"[{rendered}]"
+
+    @property
+    def is_positional(self) -> bool:
+        return all(not name.startswith("-") for name in self.names)
+
+
+@dataclass(slots=True)
 class CommandNodeSpec:
     name: str
     summary: str
     command_line: str
     sections: tuple[HelpSection, ...] = ()
-    configure_parser: ParserConfigurator | None = None
+    arg_specs: tuple[CommandArgSpec, ...] = ()
     run: CommandRunner | None = None
     children: tuple["CommandNodeSpec", ...] = ()
     parse_known_args: bool = False
@@ -93,6 +138,8 @@ def build_command_help_doc(commands: tuple[CommandNodeSpec, ...], topic: str) ->
     sections: list[HelpSection] = []
     if node.children:
         sections.append(HelpSection(title="Commands", lines=[child.command_line for child in node.children]))
+    elif node.arg_specs:
+        sections.append(HelpSection(title="Arguments", lines=[arg.help_line() for arg in node.arg_specs]))
     sections.extend(node.sections)
     return HelpDoc(
         title=" ".join(tokens),
@@ -121,8 +168,8 @@ def _attach_node(
     path: tuple[str, ...],
 ) -> None:
     parser = subparsers.add_parser(node.name)
-    if node.configure_parser is not None:
-        node.configure_parser(parser)
+    for arg_spec in node.arg_specs:
+        arg_spec.add_to_parser(parser)
     next_path = path + (node.name,)
     if node.children:
         child_subparsers = parser.add_subparsers(dest=node.child_dest or _dest_name(next_path), required=True)

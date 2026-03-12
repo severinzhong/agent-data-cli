@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import sqlite3
 
@@ -13,18 +12,15 @@ from core.models import (
     SourceStorageSpec,
     SubscriptionRecord,
 )
-from utils.time import utc_now_iso
 
+from . import audit as audit_store
+from . import channels as channel_store
+from . import configs as config_store
+from . import content as content_store
+from . import groups as group_store
+from . import health as health_store
 from .migrations import SCHEMA, build_content_table_schema
-from .repositories import (
-    row_to_channel,
-    row_to_content,
-    row_to_group,
-    row_to_group_member,
-    row_to_health,
-    row_to_source_config,
-    row_to_subscription,
-)
+from . import subscriptions as subscription_store
 
 
 class Store:
@@ -43,7 +39,7 @@ class Store:
             connection.executescript(SCHEMA)
             for spec in self._storage_specs.values():
                 connection.executescript(build_content_table_schema(spec.table_name))
-                self._ensure_content_table_columns(connection, spec.table_name)
+                content_store.ensure_content_table_columns(connection, spec.table_name)
 
     def set_storage_specs(self, storage_specs: list[SourceStorageSpec]) -> None:
         specs_by_source: dict[str, SourceStorageSpec] = {}
@@ -61,67 +57,15 @@ class Store:
 
     def upsert_source(self, source: SourceDescriptor) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO sources (name, display_name, summary)
-                VALUES (?, ?, ?)
-                ON CONFLICT(name) DO UPDATE SET
-                    display_name = excluded.display_name,
-                    summary = excluded.summary
-                """,
-                (
-                    source.name,
-                    source.display_name,
-                    source.summary,
-                ),
-            )
+            channel_store.upsert_source(connection, source)
 
     def upsert_channel(self, channel: ChannelRecord) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO channels (
-                    source,
-                    channel_id,
-                    channel_key,
-                    display_name,
-                    url,
-                    metadata_json
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(source, channel_key) DO UPDATE SET
-                    channel_id = excluded.channel_id,
-                    display_name = excluded.display_name,
-                    url = excluded.url,
-                    metadata_json = excluded.metadata_json
-                """,
-                (
-                    channel.source,
-                    channel.channel_id,
-                    channel.channel_key,
-                    channel.display_name,
-                    channel.url,
-                    json.dumps(channel.metadata, ensure_ascii=False),
-                ),
-            )
+            channel_store.upsert_channel(connection, channel)
 
     def get_channel(self, source: str, channel_key: str) -> ChannelRecord | None:
         with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT
-                    source,
-                    channel_id,
-                    channel_key,
-                    display_name,
-                    url,
-                    metadata_json
-                FROM channels
-                WHERE source = ? AND channel_key = ?
-                """,
-                (source, channel_key),
-            ).fetchone()
-        return row_to_channel(row)
+            return channel_store.get_channel(connection, source, channel_key)
 
     def add_subscription(
         self,
@@ -130,52 +74,14 @@ class Store:
         display_name: str,
         metadata: dict[str, str],
     ) -> SubscriptionRecord:
-        created_at = utc_now_iso()
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO subscriptions (
-                    source,
-                    channel_key,
-                    display_name,
-                    created_at,
-                    last_updated_at,
-                    enabled,
-                    metadata_json
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(source, channel_key) DO UPDATE SET
-                    display_name = excluded.display_name,
-                    enabled = 1,
-                    metadata_json = excluded.metadata_json
-                """,
-                (
-                    source,
-                    channel_key,
-                    display_name,
-                    created_at,
-                    None,
-                    1,
-                    json.dumps(metadata, ensure_ascii=False),
-                ),
+            return subscription_store.add_subscription(
+                connection,
+                source=source,
+                channel_key=channel_key,
+                display_name=display_name,
+                metadata=metadata,
             )
-            row = connection.execute(
-                """
-                SELECT
-                    subscription_id,
-                    source,
-                    channel_key,
-                    display_name,
-                    created_at,
-                    last_updated_at,
-                    enabled,
-                    metadata_json
-                FROM subscriptions
-                WHERE source = ? AND channel_key = ?
-                """,
-                (source, channel_key),
-            ).fetchone()
-        return row_to_subscription(row)
 
     def set_source_config(
         self,
@@ -186,39 +92,11 @@ class Store:
         is_secret: bool,
     ) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO source_configs (
-                    source,
-                    key,
-                    value,
-                    value_type,
-                    is_secret,
-                    updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(source, key) DO UPDATE SET
-                    value = excluded.value,
-                    value_type = excluded.value_type,
-                    is_secret = excluded.is_secret,
-                    updated_at = excluded.updated_at
-                """,
-                (
-                    source,
-                    key,
-                    value,
-                    value_type,
-                    int(is_secret),
-                    utc_now_iso(),
-                ),
-            )
+            config_store.set_source_config(connection, source, key, value, value_type, is_secret)
 
     def unset_source_config(self, source: str, key: str) -> None:
         with self._connect() as connection:
-            connection.execute(
-                "DELETE FROM source_configs WHERE source = ? AND key = ?",
-                (source, key),
-            )
+            config_store.unset_source_config(connection, source, key)
 
     def set_cli_config(
         self,
@@ -228,58 +106,22 @@ class Store:
         is_secret: bool,
     ) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO cli_configs (key, value, value_type, is_secret, updated_at)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(key) DO UPDATE SET
-                    value = excluded.value,
-                    value_type = excluded.value_type,
-                    is_secret = excluded.is_secret,
-                    updated_at = excluded.updated_at
-                """,
-                (key, value, value_type, int(is_secret), utc_now_iso()),
-            )
+            config_store.set_cli_config(connection, key, value, value_type, is_secret)
 
     def unset_cli_config(self, key: str) -> None:
         with self._connect() as connection:
-            connection.execute("DELETE FROM cli_configs WHERE key = ?", (key,))
+            config_store.unset_cli_config(connection, key)
 
     def list_cli_configs(self):
         with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT 'cli' AS source, key, value, value_type, is_secret, updated_at
-                FROM cli_configs
-                ORDER BY key
-                """
-            ).fetchall()
-        return [row_to_source_config(row) for row in rows]
+            return config_store.list_cli_configs(connection)
 
     def get_cli_config_map(self):
         return {entry.key: entry for entry in self.list_cli_configs()}
 
     def list_source_configs(self, source: str | None = None):
         with self._connect() as connection:
-            if source is None:
-                rows = connection.execute(
-                    """
-                    SELECT source, key, value, value_type, is_secret, updated_at
-                    FROM source_configs
-                    ORDER BY source, key
-                    """
-                ).fetchall()
-            else:
-                rows = connection.execute(
-                    """
-                    SELECT source, key, value, value_type, is_secret, updated_at
-                    FROM source_configs
-                    WHERE source = ?
-                    ORDER BY key
-                    """,
-                    (source,),
-                ).fetchall()
-        return [row_to_source_config(row) for row in rows]
+            return config_store.list_source_configs(connection, source)
 
     def get_source_config_map(self, source: str):
         return {
@@ -289,298 +131,80 @@ class Store:
 
     def prune_source_configs(self, allowed_keys_by_source: dict[str, set[str]]) -> None:
         with self._connect() as connection:
-            rows = connection.execute(
-                "SELECT source, key FROM source_configs"
-            ).fetchall()
-            for row in rows:
-                source = row["source"]
-                key = row["key"]
-                allowed_keys = allowed_keys_by_source.get(source)
-                if allowed_keys is None or key not in allowed_keys:
-                    connection.execute(
-                        "DELETE FROM source_configs WHERE source = ? AND key = ?",
-                        (source, key),
-                    )
+            config_store.prune_source_configs(connection, allowed_keys_by_source)
 
     def prune_cli_configs(self, allowed_keys: set[str]) -> None:
         with self._connect() as connection:
-            rows = connection.execute("SELECT key FROM cli_configs").fetchall()
-            for row in rows:
-                key = row["key"]
-                if key not in allowed_keys:
-                    connection.execute("DELETE FROM cli_configs WHERE key = ?", (key,))
+            config_store.prune_cli_configs(connection, allowed_keys)
 
     def create_group(self, group_name: str) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO groups (group_name, created_at)
-                VALUES (?, ?)
-                ON CONFLICT(group_name) DO NOTHING
-                """,
-                (group_name, utc_now_iso()),
-            )
+            group_store.create_group(connection, group_name)
 
     def delete_group(self, group_name: str) -> None:
         with self._connect() as connection:
-            connection.execute("DELETE FROM group_members WHERE group_name = ?", (group_name,))
-            connection.execute("DELETE FROM groups WHERE group_name = ?", (group_name,))
+            group_store.delete_group(connection, group_name)
 
     def list_groups(self):
         with self._connect() as connection:
-            rows = connection.execute(
-                "SELECT group_name, created_at FROM groups ORDER BY group_name"
-            ).fetchall()
-        return [row_to_group(row) for row in rows]
+            return group_store.list_groups(connection)
 
     def add_group_source(self, group_name: str, source: str) -> None:
-        self.create_group(group_name)
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO group_members (group_name, member_type, source, channel_key)
-                VALUES (?, 'source', ?, '')
-                ON CONFLICT(group_name, member_type, source, channel_key) DO NOTHING
-                """,
-                (group_name, source),
-            )
+            group_store.add_group_source(connection, group_name, source)
 
     def add_group_channel(self, group_name: str, source: str, channel_key: str) -> None:
-        self.create_group(group_name)
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO group_members (group_name, member_type, source, channel_key)
-                VALUES (?, 'channel', ?, ?)
-                ON CONFLICT(group_name, member_type, source, channel_key) DO NOTHING
-                """,
-                (group_name, source, channel_key),
-            )
+            group_store.add_group_channel(connection, group_name, source, channel_key)
 
     def remove_group_source(self, group_name: str, source: str) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                DELETE FROM group_members
-                WHERE group_name = ? AND member_type = 'source' AND source = ? AND channel_key = ''
-                """,
-                (group_name, source),
-            )
+            group_store.remove_group_source(connection, group_name, source)
 
     def remove_group_channel(self, group_name: str, source: str, channel_key: str) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                DELETE FROM group_members
-                WHERE group_name = ? AND member_type = 'channel' AND source = ? AND channel_key = ?
-                """,
-                (group_name, source, channel_key),
-            )
+            group_store.remove_group_channel(connection, group_name, source, channel_key)
 
     def list_group_members(self, group_name: str):
         with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT group_name, member_type, source, channel_key
-                FROM group_members
-                WHERE group_name = ?
-                ORDER BY member_type, source, channel_key
-                """,
-                (group_name,),
-            ).fetchall()
-        return [row_to_group_member(row) for row in rows]
+            return group_store.list_group_members(connection, group_name)
 
     def expand_group_update_targets(self, group_name: str) -> list[tuple[str, str]]:
-        targets: set[tuple[str, str]] = set()
-        for member in self.list_group_members(group_name):
-            if member.member_type == "channel" and member.channel_key:
-                targets.add((member.source, member.channel_key))
-                continue
-            if member.member_type == "source":
-                for subscription in self.list_subscriptions(member.source):
-                    targets.add((subscription.source, subscription.channel_key))
-        return sorted(targets)
+        with self._connect() as connection:
+            return group_store.expand_group_update_targets(connection, group_name)
 
     def remove_subscription(self, source: str, channel_key: str) -> None:
         with self._connect() as connection:
-            connection.execute(
-                "DELETE FROM subscriptions WHERE source = ? AND channel_key = ?",
-                (source, channel_key),
-            )
+            subscription_store.remove_subscription(connection, source, channel_key)
 
     def list_subscriptions(self, source: str | None = None) -> list[SubscriptionRecord]:
         with self._connect() as connection:
-            if source is None:
-                rows = connection.execute(
-                    """
-                    SELECT
-                        subscription_id,
-                        source,
-                        channel_key,
-                        display_name,
-                        created_at,
-                        last_updated_at,
-                        enabled,
-                        metadata_json
-                    FROM subscriptions
-                    ORDER BY source, channel_key
-                    """
-                ).fetchall()
-            else:
-                rows = connection.execute(
-                    """
-                    SELECT
-                        subscription_id,
-                        source,
-                        channel_key,
-                        display_name,
-                        created_at,
-                        last_updated_at,
-                        enabled,
-                        metadata_json
-                    FROM subscriptions
-                    WHERE source = ?
-                    ORDER BY channel_key
-                    """,
-                    (source,),
-                ).fetchall()
-        return [row_to_subscription(row) for row in rows]
+            return subscription_store.list_subscriptions(connection, source)
 
     def is_subscribed(self, source: str, channel_key: str) -> bool:
         with self._connect() as connection:
-            row = connection.execute(
-                "SELECT 1 FROM subscriptions WHERE source = ? AND channel_key = ?",
-                (source, channel_key),
-            ).fetchone()
-        return row is not None
+            return subscription_store.is_subscribed(connection, source, channel_key)
 
     def upsert_content(self, record: ContentRecord) -> bool:
-        fetched_at = record.fetched_at or utc_now_iso()
         table_name = self._table_for_source(record.source)
         with self._connect() as connection:
-            cursor = connection.execute(
-                f"""
-                INSERT OR IGNORE INTO {table_name} (
-                    source,
-                    channel_key,
-                    record_type,
-                    external_id,
-                    title,
-                    url,
-                    snippet,
-                    author,
-                    published_at,
-                    fetched_at,
-                    raw_payload,
-                    dedup_key,
-                    content_ref
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record.source,
-                    record.channel_key,
-                    record.record_type,
-                    record.external_id,
-                    record.title,
-                    record.url,
-                    record.snippet,
-                    record.author,
-                    record.published_at,
-                    fetched_at,
-                    record.raw_payload,
-                    record.dedup_key,
-                    record.content_ref,
-                ),
-            )
-        return cursor.rowcount == 1
+            return content_store.upsert_content(connection, table_name, record)
 
     def insert_action_audit(self, record: ActionAuditRecord) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO action_audits (
-                    executed_at,
-                    action,
-                    source,
-                    mode,
-                    target_kind,
-                    targets_json,
-                    params_summary,
-                    status,
-                    error,
-                    dry_run
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record.executed_at,
-                    record.action,
-                    record.source,
-                    record.mode,
-                    record.target_kind,
-                    json.dumps(record.targets, ensure_ascii=False),
-                    record.params_summary,
-                    record.status,
-                    record.error,
-                    int(record.dry_run),
-                ),
-            )
+            audit_store.insert_action_audit(connection, record)
 
     def set_sync_state(self, source: str, channel_key: str, cursor: str) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO sync_state (source, channel_key, cursor, updated_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(source, channel_key) DO UPDATE SET
-                    cursor = excluded.cursor,
-                    updated_at = excluded.updated_at
-                """,
-                (source, channel_key, cursor, utc_now_iso()),
-            )
+            content_store.set_sync_state(connection, source, channel_key, cursor)
 
     def save_health(self, record: HealthRecord) -> None:
         with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO health_checks (
-                    source,
-                    status,
-                    checked_at,
-                    latency_ms,
-                    error,
-                    details
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(source) DO UPDATE SET
-                    status = excluded.status,
-                    checked_at = excluded.checked_at,
-                    latency_ms = excluded.latency_ms,
-                    error = excluded.error,
-                    details = excluded.details
-                """,
-                (
-                    record.source,
-                    record.status,
-                    record.checked_at,
-                    record.latency_ms,
-                    record.error,
-                    record.details,
-                ),
-            )
+            health_store.save_health(connection, record)
 
     def get_latest_health(self, source: str) -> HealthRecord | None:
         with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT source, status, checked_at, latency_ms, error, details
-                FROM health_checks
-                WHERE source = ?
-                """,
-                (source,),
-            ).fetchone()
-        return row_to_health(row)
+            return health_store.get_latest_health(connection, source)
 
     def list_content(
         self,
@@ -593,48 +217,17 @@ class Store:
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
         table_name = self._table_for_source(source)
-        query = [
-            f"""
-            SELECT
-                source,
-                channel_key,
-                record_type,
-                external_id,
-                title,
-                url,
-                snippet,
-                author,
-                published_at,
-                fetched_at,
-                raw_payload,
-                dedup_key,
-                content_ref
-            FROM {table_name}
-            WHERE source = ? AND channel_key = ?
-            """
-        ]
-        params: list[str | int] = [source, channel_key]
-
-        if record_type is not None:
-            query.append("AND record_type = ?")
-            params.append(record_type)
-
-        if since is not None:
-            normalized_since = since
-            if len(since) == 8 and since.isdigit():
-                normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
-            query.append("AND julianday(published_at) >= julianday(?)")
-            params.append(normalized_since)
-
-        query.append("ORDER BY published_at DESC, record_id DESC")
-
-        if not fetch_all and limit >= 0:
-            query.append("LIMIT ?")
-            params.append(limit)
-
         with self._connect() as connection:
-            rows = connection.execute(" ".join(query), params).fetchall()
-        return [row_to_content(row) for row in rows]
+            return content_store.list_content(
+                connection,
+                table_name=table_name,
+                source=source,
+                channel_key=channel_key,
+                record_type=record_type,
+                limit=limit,
+                since=since,
+                fetch_all=fetch_all,
+            )
 
     def query_content(
         self,
@@ -648,162 +241,22 @@ class Store:
         limit: int = 10,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
-        targets = self._resolve_query_targets(
-            source=source,
-            channel_key=channel_key,
-            group_name=group_name,
-        )
-        if not targets:
-            return []
-        all_records: list[ContentRecord] = []
-        for source_name, channel_filter in targets.items():
-            all_records.extend(
-                self._query_source_content(
-                    source=source_name,
-                    channel_filter=channel_filter,
-                    record_type=record_type,
-                    since=since,
-                    keywords=keywords,
-                )
+        with self._connect() as connection:
+            return content_store.query_content(
+                connection,
+                storage_specs=self._storage_specs,
+                source=source,
+                channel_key=channel_key,
+                group_name=group_name,
+                record_type=record_type,
+                since=since,
+                keywords=keywords,
+                limit=limit,
+                fetch_all=fetch_all,
             )
-        all_records.sort(
-            key=lambda record: (
-                record.published_at or "",
-                record.fetched_at or "",
-                record.dedup_key,
-            ),
-            reverse=True,
-        )
-        if fetch_all or limit < 0:
-            return all_records
-        return all_records[:limit]
 
     def _connect(self) -> sqlite3.Connection:
         return self._connection
-
-    def _ensure_content_table_columns(self, connection: sqlite3.Connection, table_name: str) -> None:
-        rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
-        existing_columns = {row["name"] for row in rows}
-        if "content_ref" not in existing_columns:
-            connection.execute(f"ALTER TABLE {table_name} ADD COLUMN content_ref TEXT")
-
-    def _query_source_content(
-        self,
-        *,
-        source: str,
-        channel_filter: set[str] | None,
-        record_type: str | None,
-        since: str | None,
-        keywords: str | None,
-    ) -> list[ContentRecord]:
-        table_name = self._table_for_source(source)
-        query = [
-            f"""
-            SELECT
-                source,
-                channel_key,
-                record_type,
-                external_id,
-                title,
-                url,
-                snippet,
-                author,
-                published_at,
-                fetched_at,
-                raw_payload,
-                dedup_key,
-                content_ref
-            FROM {table_name}
-            WHERE source = ?
-            """
-        ]
-        params: list[str | int] = [source]
-        if channel_filter is not None:
-            if not channel_filter:
-                return []
-            placeholders = ", ".join("?" for _ in channel_filter)
-            query.append(f"AND channel_key IN ({placeholders})")
-            params.extend(sorted(channel_filter))
-        if record_type is not None:
-            query.append("AND record_type = ?")
-            params.append(record_type)
-        if since is not None:
-            normalized_since = since
-            if len(since) == 8 and since.isdigit():
-                normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
-            query.append("AND julianday(published_at) >= julianday(?)")
-            params.append(normalized_since)
-        if keywords is not None:
-            keyword = f"%{keywords}%"
-            query.append(
-                """
-                AND (
-                    title LIKE ?
-                    OR snippet LIKE ?
-                    OR url LIKE ?
-                    OR channel_key LIKE ?
-                )
-                """
-            )
-            params.extend([keyword, keyword, keyword, keyword])
-        query.append("ORDER BY published_at DESC, record_id DESC")
-        with self._connect() as connection:
-            rows = connection.execute(" ".join(query), params).fetchall()
-        return [row_to_content(row) for row in rows]
-
-    def _resolve_query_targets(
-        self,
-        *,
-        source: str | None,
-        channel_key: str | None,
-        group_name: str | None,
-    ) -> dict[str, set[str] | None]:
-        if source is not None:
-            self._require_storage_spec(source)
-        if group_name is None:
-            if source is not None:
-                if channel_key is not None:
-                    return {source: {channel_key}}
-                return {source: None}
-            if channel_key is not None:
-                return {source_name: {channel_key} for source_name in self._storage_specs}
-            return {source_name: None for source_name in self._storage_specs}
-
-        members = self.list_group_members(group_name)
-        if not members:
-            return {}
-        grouped_targets: dict[str, set[str] | None] = {}
-        for member in members:
-            self._require_storage_spec(member.source)
-            if member.member_type == "source":
-                grouped_targets[member.source] = None
-                continue
-            existing = grouped_targets.get(member.source)
-            if existing is None and member.source in grouped_targets:
-                continue
-            if existing is None:
-                existing = set()
-                grouped_targets[member.source] = existing
-            if member.channel_key is not None:
-                existing.add(member.channel_key)
-
-        if source is not None:
-            channel_filter = grouped_targets.get(source)
-            if source not in grouped_targets:
-                return {}
-            grouped_targets = {source: channel_filter}
-
-        if channel_key is None:
-            return grouped_targets
-
-        filtered_targets: dict[str, set[str] | None] = {}
-        for source_name, channels in grouped_targets.items():
-            if channels is None:
-                filtered_targets[source_name] = {channel_key}
-                continue
-            if channel_key in channels:
-                filtered_targets[source_name] = {channel_key}
-        return filtered_targets
 
     def _table_for_source(self, source: str) -> str:
         return self._require_storage_spec(source).table_name

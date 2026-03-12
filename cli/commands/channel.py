@@ -1,25 +1,12 @@
 from __future__ import annotations
 
-import argparse
-
 from cli.formatters import build_channel_json_rows, print_channels, print_jsonl_rows
 from cli.commands.common import require_action, require_option, resolve_limit
-from cli.commands.specs import CommandContext, CommandNodeSpec
+from cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
 from core.help import HelpSection
 
 
-def _add_channel_list_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("source")
-
-
-def _add_channel_search_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--source", required=True)
-    parser.add_argument("--query", required=True)
-    parser.add_argument("--limit", type=int)
-    parser.add_argument("--jsonl", action="store_true")
-
-
-def _run_channel_list(args: argparse.Namespace, extras: list[str], ctx: CommandContext) -> int:
+def _run_channel_list(args, extras: list[str], ctx: CommandContext) -> int:
     _ = extras
     source = ctx.registry.build(args.source)
     require_action(ctx.registry, args.source, "channel.list")
@@ -27,7 +14,7 @@ def _run_channel_list(args: argparse.Namespace, extras: list[str], ctx: CommandC
     return 0
 
 
-def _run_channel_search(args: argparse.Namespace, extras: list[str], ctx: CommandContext) -> int:
+def _run_channel_search(args, extras: list[str], ctx: CommandContext) -> int:
     _ = extras
     source = ctx.registry.build(args.source)
     require_action(ctx.registry, args.source, "channel.search")
@@ -54,7 +41,7 @@ CHANNEL_COMMAND = CommandNodeSpec(
             name="list",
             summary="列出某个 source 的内置 channel。",
             command_line="channel list <source>",
-            configure_parser=_add_channel_list_args,
+            arg_specs=(CommandArgSpec(names=("source",), value_name="source"),),
             run=_run_channel_list,
         ),
         CommandNodeSpec(
@@ -77,7 +64,12 @@ CHANNEL_COMMAND = CommandNodeSpec(
                     ],
                 ),
             ),
-            configure_parser=_add_channel_search_args,
+            arg_specs=(
+                CommandArgSpec(names=("--source",), value_name="source", required=True),
+                CommandArgSpec(names=("--query",), value_name="query", required=True),
+                CommandArgSpec(names=("--limit",), value_name="n", type=int),
+                CommandArgSpec(names=("--jsonl",), action="store_true"),
+            ),
             run=_run_channel_search,
         ),
     ),
