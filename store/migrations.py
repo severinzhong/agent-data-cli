@@ -5,11 +5,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS sources (
     name TEXT PRIMARY KEY,
     display_name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    supports_search INTEGER NOT NULL,
-    supports_subscriptions INTEGER NOT NULL,
-    supports_updates INTEGER NOT NULL,
-    supports_query INTEGER NOT NULL
+    summary TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS channels (
@@ -44,6 +40,14 @@ CREATE TABLE IF NOT EXISTS source_configs (
     PRIMARY KEY (source, key)
 );
 
+CREATE TABLE IF NOT EXISTS cli_configs (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    value_type TEXT NOT NULL,
+    is_secret INTEGER NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS groups (
     group_name TEXT PRIMARY KEY,
     created_at TEXT NOT NULL
@@ -73,6 +77,20 @@ CREATE TABLE IF NOT EXISTS health_checks (
     error TEXT,
     details TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS action_audits (
+    audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    executed_at TEXT NOT NULL,
+    action TEXT NOT NULL,
+    source TEXT NOT NULL,
+    mode TEXT,
+    target_kind TEXT NOT NULL,
+    targets_json TEXT NOT NULL,
+    params_summary TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    dry_run INTEGER NOT NULL
+);
 """
 
 
@@ -91,7 +109,8 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     published_at TEXT,
     fetched_at TEXT NOT NULL,
     raw_payload TEXT NOT NULL,
-    dedup_key TEXT NOT NULL UNIQUE
+    dedup_key TEXT NOT NULL UNIQUE,
+    content_ref TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_{table_name}_channel_type_time

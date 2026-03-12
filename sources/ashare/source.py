@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
 from urllib.parse import quote
 
 from core.base import BaseSource
-from core.help import HelpDoc, HelpSection
+from core.manifest import (
+    ActionOptionSpec,
+    DocsSpec,
+    QuerySpec,
+    SourceActionSpec,
+    SourceIdentity,
+    SourceManifest,
+    StorageSpec,
+)
 from core.models import (
     ChannelRecord,
     ContentRecord,
@@ -17,6 +26,7 @@ from core.models import (
     SearchViewSpec,
     SourceStorageSpec,
 )
+from core.source_defaults import proxy_url_config
 from utils.time import utc_now_iso
 
 
@@ -31,18 +41,9 @@ class AShareSource(BaseSource):
     name = "ashare"
     display_name = "A-Share"
     description = "A-share market data via public suggest and quote endpoints"
-    supports_search = True
-    supports_updates = True
-    supports_query = True
 
     def get_storage_spec(self) -> SourceStorageSpec:
-        return SourceStorageSpec(
-            source=self.name,
-            table_name="ashare_records",
-            record_schema="content",
-            supports_keywords=True,
-            time_field="published_at",
-        )
+        return super().get_storage_spec()
 
     def list_channels(self) -> list[ChannelRecord]:
         return [
@@ -68,18 +69,13 @@ class AShareSource(BaseSource):
             return self._channel_record(channel_key, ASHARE_DEFAULT_CHANNELS[channel_key])
         return self._channel_record(channel_key, channel_key)
 
-    def search(
-        self,
-        query: str,
-        channel: str | None = None,
-        limit: int = 10,
-    ) -> list[SearchResult]:
+    def search_channels(self, query: str, limit: int = 20) -> list[ChannelRecord]:
         body = self.http.get_text(
             f"https://suggest3.sinajs.cn/suggest/type=11,12,13,14,15&key={quote(query)}",
             encoding="gbk",
         )
         raw_entries = body.split('"', 2)[1].split(";")
-        results = []
+        results: list[ChannelRecord] = []
         for raw_entry in raw_entries:
             if not raw_entry:
                 continue
@@ -89,67 +85,41 @@ class AShareSource(BaseSource):
             name = fields[0]
             channel_key = fields[3]
             results.append(
-                SearchResult(
-                    title=f"{name} ({channel_key})",
-                    url=self._channel_url(channel_key),
-                    snippet=f"A-share channel {channel_key}",
+                ChannelRecord(
                     source=self.name,
-                    result_kind="channel",
+                    channel_id=channel_key,
                     channel_key=channel_key,
-                    metadata={
-                        "name": name,
-                        "channel_key": channel_key,
-                    },
+                    display_name=name,
+                    url=self._channel_url(channel_key),
+                    metadata={"name": name, "channel_key": channel_key},
                 )
             )
             if len(results) == limit:
                 break
         return results
 
-    def get_search_view(self, kind: str) -> SearchViewSpec | None:
-        if kind != "channel":
-            return None
+    def get_channel_search_view(self) -> SearchViewSpec | None:
         return SearchViewSpec(
             columns=[
                 SearchColumnSpec(
                     "name",
-                    lambda result: self._search_metadata(result, "name", result.title),
+                    lambda channel: channel.metadata.get("name", channel.display_name),
                 ),
                 SearchColumnSpec(
                     "channel",
-                    lambda result: self._search_metadata(result, "channel_key", ""),
+                    lambda channel: channel.metadata.get("channel_key", channel.channel_key),
                     no_wrap=True,
                 ),
                 SearchColumnSpec(
                     "url",
-                    lambda result: result.url,
+                    lambda channel: channel.url,
                     no_wrap=True,
                     max_width=56,
                 ),
             ]
         )
 
-    def query(
-        self,
-        channel_key: str,
-        record_type: str | None = None,
-        limit: int = 10,
-        since: str | None = None,
-        fetch_all: bool = False,
-    ) -> list[ContentRecord]:
-        resolved_type = self._resolve_record_type(record_type)
-        return super().query(
-            channel_key,
-            record_type=resolved_type,
-            limit=limit,
-            since=since,
-            fetch_all=fetch_all,
-        )
-
-    def get_query_view(self, record_type: str | None = None) -> QueryViewSpec | None:
-        resolved_type = self._resolve_record_type(record_type)
-        if resolved_type != "day":
-            return None
+    def get_query_view(self) -> QueryViewSpec | None:
         return QueryViewSpec(
             columns=[
                 QueryColumnSpec("channel", lambda record: record.channel_key),
@@ -162,12 +132,6 @@ class AShareSource(BaseSource):
                 QueryColumnSpec("amount", lambda record: self._raw_bar_value(record, 6), justify="right"),
             ]
         )
-
-    def get_default_query_record_type(self) -> str | None:
-        return "day"
-
-    def get_supported_record_types(self) -> tuple[str, ...]:
-        return ("day",)
 
     def _channel_record(self, channel_key: str, display_name: str) -> ChannelRecord:
         return ChannelRecord(
@@ -182,32 +146,23 @@ class AShareSource(BaseSource):
     def _channel_url(self, channel_key: str) -> str:
         return f"https://quote.eastmoney.com/{channel_key}.html"
 
-    def _resolve_record_type(self, record_type: str | None) -> str:
-        if record_type is None:
-            return "day"
-        if record_type not in self.get_supported_record_types():
-            raise RuntimeError(f"unsupported ashare type: {record_type}")
-        return record_type
-
-    def _fetch_remote_records(
+    def fetch_content(
         self,
         channel_key: str,
-        record_type: str | None = None,
-        limit: int = 10,
-        since: str | None = None,
+        since: datetime | None = None,
+        limit: int | None = 20,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
-        resolved_type = self._resolve_record_type(record_type)
         channel = self.get_channel(channel_key)
         bars = self._fetch_bars(
             channel_key,
-            resolved_type,
-            limit=limit,
+            "day",
+            limit=20 if limit is None else limit,
             since=since,
             fetch_all=fetch_all,
         )
         return [
-            self._build_bar_record(channel, resolved_type, bar)
+            self._build_bar_record(channel, "day", bar)
             for bar in bars
         ]
 
@@ -217,11 +172,11 @@ class AShareSource(BaseSource):
         record_type: str,
         *,
         limit: int,
-        since: str | None,
+        since: datetime | None,
         fetch_all: bool,
     ) -> list[list[str]]:
         klt = "101"
-        beg = since or "0"
+        beg = since.astimezone().strftime("%Y%m%d") if since is not None else "0"
         end = "20500101"
         fields2 = "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
         secid = self._secid_for_channel(channel_key)
@@ -234,7 +189,8 @@ class AShareSource(BaseSource):
         klines = payload["data"]["klines"]
         parsed = [line.split(",") for line in klines]
         if since is not None:
-            parsed = [row for row in parsed if row[0].replace("-", "").replace(":", "").replace(" ", "")[:8] >= since]
+            since_key = since.astimezone().strftime("%Y%m%d")
+            parsed = [row for row in parsed if row[0].replace("-", "").replace(":", "").replace(" ", "")[:8] >= since_key]
         if fetch_all:
             return parsed
         if limit < 0:
@@ -283,23 +239,69 @@ class AShareSource(BaseSource):
             return f"0.{channel_key[2:]}"
         raise RuntimeError(f"unsupported A-share channel: {channel_key}")
 
-    def _search_metadata(self, result: SearchResult, key: str, default: str) -> str:
-        if not result.metadata:
-            return default
-        return result.metadata.get(key, default)
+MANIFEST = SourceManifest(
+    identity=SourceIdentity(
+        name="ashare",
+        display_name="A-Share",
+        summary="A-share market data via public suggest and quote endpoints",
+    ),
+    mode=None,
+    config_fields=(proxy_url_config(),),
+    source_actions={
+        "source.health": SourceActionSpec(name="source.health", summary="Check A-share endpoints"),
+        "channel.list": SourceActionSpec(name="channel.list", summary="List default tracked symbols"),
+        "channel.search": SourceActionSpec(
+            name="channel.search",
+            summary="Search A-share symbols",
+            options={
+                "query": ActionOptionSpec(name="query"),
+                "limit": ActionOptionSpec(name="limit"),
+            },
+            result_kinds=("channel",),
+        ),
+        "content.update": SourceActionSpec(
+            name="content.update",
+            summary="Fetch subscribed day bars into local store",
+            options={
+                "channel": ActionOptionSpec(name="channel"),
+                "since": ActionOptionSpec(name="since"),
+                "limit": ActionOptionSpec(name="limit"),
+                "all": ActionOptionSpec(name="all"),
+            },
+            result_kinds=("content",),
+        ),
+    },
+    query=QuerySpec(
+        time_field="published_at",
+        supports_keywords=True,
+        view_id="ashare.day",
+        view_fields=("channel", "date", "open", "close", "high", "low", "volume", "amount"),
+    ),
+    interaction_verbs={},
+    storage=StorageSpec(
+        table_name="ashare_records",
+        required_record_fields=(
+            "source",
+            "channel_key",
+            "record_type",
+            "external_id",
+            "title",
+            "url",
+            "snippet",
+            "published_at",
+            "fetched_at",
+            "raw_payload",
+            "dedup_key",
+        ),
+    ),
+    docs=DocsSpec(
+        examples=(
+            "dc channel search --source ashare --query 贵州茅台 --limit 5",
+            "dc content update --source ashare --channel sh600519 --limit 100",
+            "dc content query --source ashare --channel sh600519 --limit 60",
+        ),
+    ),
+)
 
-    def get_help(self) -> HelpDoc | None:
-        return HelpDoc(
-            title="ashare",
-            summary="A 股标的发现与日线数据采集。",
-            sections=[
-                HelpSection(
-                    title="Examples",
-                    lines=[
-                        "dc search ashare <keywords>",
-                        "dc update ashare --channel <channel> --limit <n>",
-                        "dc query --source ashare --channel <channel> --limit <n>",
-                    ],
-                )
-            ],
-        )
+SOURCE_CLASS = AShareSource
+AShareSource.manifest = MANIFEST

@@ -5,6 +5,7 @@ import re
 import sqlite3
 
 from core.models import (
+    ActionAuditRecord,
     ChannelRecord,
     ContentRecord,
     HealthRecord,
@@ -37,12 +38,12 @@ class Store:
         if storage_specs is not None:
             self.set_storage_specs(storage_specs)
         if not self._storage_specs:
-            self.set_storage_specs(self._build_default_storage_specs())
+            raise RuntimeError("storage specs must be provided before init_schema")
         with self._connect() as connection:
             connection.executescript(SCHEMA)
             for spec in self._storage_specs.values():
                 connection.executescript(build_content_table_schema(spec.table_name))
-        self._remove_invalid_content_records()
+                self._ensure_content_table_columns(connection, spec.table_name)
 
     def set_storage_specs(self, storage_specs: list[SourceStorageSpec]) -> None:
         specs_by_source: dict[str, SourceStorageSpec] = {}
@@ -62,32 +63,16 @@ class Store:
         with self._connect() as connection:
             connection.execute(
                 """
-                INSERT INTO sources (
-                    name,
-                    display_name,
-                    description,
-                    supports_search,
-                    supports_subscriptions,
-                    supports_updates,
-                    supports_query
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO sources (name, display_name, summary)
+                VALUES (?, ?, ?)
                 ON CONFLICT(name) DO UPDATE SET
                     display_name = excluded.display_name,
-                    description = excluded.description,
-                    supports_search = excluded.supports_search,
-                    supports_subscriptions = excluded.supports_subscriptions,
-                    supports_updates = excluded.supports_updates,
-                    supports_query = excluded.supports_query
+                    summary = excluded.summary
                 """,
                 (
                     source.name,
                     source.display_name,
-                    source.description,
-                    int(source.supports_search),
-                    int(source.supports_subscriptions),
-                    int(source.supports_updates),
-                    int(source.supports_query),
+                    source.summary,
                 ),
             )
 
@@ -235,6 +220,45 @@ class Store:
                 (source, key),
             )
 
+    def set_cli_config(
+        self,
+        key: str,
+        value: str,
+        value_type: str,
+        is_secret: bool,
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO cli_configs (key, value, value_type, is_secret, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    value_type = excluded.value_type,
+                    is_secret = excluded.is_secret,
+                    updated_at = excluded.updated_at
+                """,
+                (key, value, value_type, int(is_secret), utc_now_iso()),
+            )
+
+    def unset_cli_config(self, key: str) -> None:
+        with self._connect() as connection:
+            connection.execute("DELETE FROM cli_configs WHERE key = ?", (key,))
+
+    def list_cli_configs(self):
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT 'cli' AS source, key, value, value_type, is_secret, updated_at
+                FROM cli_configs
+                ORDER BY key
+                """
+            ).fetchall()
+        return [row_to_source_config(row) for row in rows]
+
+    def get_cli_config_map(self):
+        return {entry.key: entry for entry in self.list_cli_configs()}
+
     def list_source_configs(self, source: str | None = None):
         with self._connect() as connection:
             if source is None:
@@ -277,6 +301,14 @@ class Store:
                         "DELETE FROM source_configs WHERE source = ? AND key = ?",
                         (source, key),
                     )
+
+    def prune_cli_configs(self, allowed_keys: set[str]) -> None:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT key FROM cli_configs").fetchall()
+            for row in rows:
+                key = row["key"]
+                if key not in allowed_keys:
+                    connection.execute("DELETE FROM cli_configs WHERE key = ?", (key,))
 
     def create_group(self, group_name: str) -> None:
         with self._connect() as connection:
@@ -414,6 +446,14 @@ class Store:
                 ).fetchall()
         return [row_to_subscription(row) for row in rows]
 
+    def is_subscribed(self, source: str, channel_key: str) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM subscriptions WHERE source = ? AND channel_key = ?",
+                (source, channel_key),
+            ).fetchone()
+        return row is not None
+
     def upsert_content(self, record: ContentRecord) -> bool:
         fetched_at = record.fetched_at or utc_now_iso()
         table_name = self._table_for_source(record.source)
@@ -432,9 +472,10 @@ class Store:
                     published_at,
                     fetched_at,
                     raw_payload,
-                    dedup_key
+                    dedup_key,
+                    content_ref
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.source,
@@ -449,9 +490,42 @@ class Store:
                     fetched_at,
                     record.raw_payload,
                     record.dedup_key,
+                    record.content_ref,
                 ),
             )
         return cursor.rowcount == 1
+
+    def insert_action_audit(self, record: ActionAuditRecord) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO action_audits (
+                    executed_at,
+                    action,
+                    source,
+                    mode,
+                    target_kind,
+                    targets_json,
+                    params_summary,
+                    status,
+                    error,
+                    dry_run
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record.executed_at,
+                    record.action,
+                    record.source,
+                    record.mode,
+                    record.target_kind,
+                    json.dumps(record.targets, ensure_ascii=False),
+                    record.params_summary,
+                    record.status,
+                    record.error,
+                    int(record.dry_run),
+                ),
+            )
 
     def set_sync_state(self, source: str, channel_key: str, cursor: str) -> None:
         with self._connect() as connection:
@@ -533,7 +607,8 @@ class Store:
                 published_at,
                 fetched_at,
                 raw_payload,
-                dedup_key
+                dedup_key,
+                content_ref
             FROM {table_name}
             WHERE source = ? AND channel_key = ?
             """
@@ -606,14 +681,11 @@ class Store:
     def _connect(self) -> sqlite3.Connection:
         return self._connection
 
-    def _remove_invalid_content_records(self) -> None:
-        for spec in self._storage_specs.values():
-            self._connection.execute(
-                f"""
-                DELETE FROM {spec.table_name}
-                WHERE TRIM(COALESCE(record_type, '')) = ''
-                """
-            )
+    def _ensure_content_table_columns(self, connection: sqlite3.Connection, table_name: str) -> None:
+        rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        existing_columns = {row["name"] for row in rows}
+        if "content_ref" not in existing_columns:
+            connection.execute(f"ALTER TABLE {table_name} ADD COLUMN content_ref TEXT")
 
     def _query_source_content(
         self,
@@ -639,7 +711,8 @@ class Store:
                 published_at,
                 fetched_at,
                 raw_payload,
-                dedup_key
+                dedup_key,
+                content_ref
             FROM {table_name}
             WHERE source = ?
             """
@@ -740,11 +813,6 @@ class Store:
             return self._storage_specs[source]
         except KeyError as exc:
             raise RuntimeError(f"no storage spec registered for source: {source}") from exc
-
-    def _build_default_storage_specs(self) -> list[SourceStorageSpec]:
-        from core.registry import build_default_registry
-
-        return build_default_registry(store=None).list_storage_specs()
 
     def _is_valid_identifier(self, value: str) -> bool:
         return re.fullmatch(r"[a-z][a-z0-9_]*", value) is not None

@@ -54,6 +54,7 @@ def row_to_content(row: sqlite3.Row) -> ContentRecord:
         fetched_at=row["fetched_at"],
         raw_payload=row["raw_payload"],
         dedup_key=row["dedup_key"],
+        content_ref=row["content_ref"] if "content_ref" in row.keys() else None,
     )
 
 

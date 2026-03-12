@@ -2,11 +2,21 @@ from __future__ import annotations
 import re
 import time
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from urllib.parse import quote_plus
 
 from core.base import BaseSource
-from core.help import HelpDoc, HelpSection
+from core.manifest import (
+    ActionOptionSpec,
+    DocsSpec,
+    QuerySpec,
+    SourceActionSpec,
+    SourceIdentity,
+    SourceManifest,
+    StorageSpec,
+)
 from core.models import ChannelRecord, ContentRecord, HealthRecord, SearchResult, SourceStorageSpec
+from core.source_defaults import proxy_url_config
 from utils.text import clean_text
 from utils.time import rfc2822_to_iso, utc_now_iso
 
@@ -38,18 +48,9 @@ class BbcSource(BaseSource):
     name = "bbc"
     display_name = "BBC"
     description = "BBC News RSS and site search"
-    supports_search = True
-    supports_updates = True
-    supports_query = True
 
     def get_storage_spec(self) -> SourceStorageSpec:
-        return SourceStorageSpec(
-            source=self.name,
-            table_name="bbc_records",
-            record_schema="content",
-            supports_keywords=True,
-            time_field="published_at",
-        )
+        return super().get_storage_spec()
 
     def list_channels(self) -> list[ChannelRecord]:
         channels = []
@@ -79,12 +80,17 @@ class BbcSource(BaseSource):
             details="bbc world rss reachable",
         )
 
-    def search(
+    def search_content(
         self,
-        query: str,
-        channel: str | None = None,
-        limit: int = 10,
+        channel_key: str | None = None,
+        query: str | None = None,
+        since: datetime | None = None,
+        limit: int = 20,
     ) -> list[SearchResult]:
+        _ = channel_key
+        _ = since
+        if not query:
+            return []
         url = f"https://www.bbc.co.uk/search?q={quote_plus(query)}"
         html = self.http.get_text(url)
         results = []
@@ -107,16 +113,13 @@ class BbcSource(BaseSource):
                 break
         return results
 
-    def _fetch_remote_records(
+    def fetch_content(
         self,
         channel_key: str,
-        record_type: str | None = None,
-        limit: int = 10,
-        since: str | None = None,
+        since: datetime | None = None,
+        limit: int | None = 20,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
-        if record_type not in (None, "article"):
-            raise RuntimeError("bbc query only supports record_type=article")
         channel = self.get_channel(channel_key)
         xml_body = self.http.get_text(channel.url)
         root = ET.fromstring(xml_body)
@@ -144,27 +147,75 @@ class BbcSource(BaseSource):
                 )
             )
         if since is not None:
-            normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
+            normalized_since = since.astimezone().date().isoformat()
             records = [
                 record for record in records
                 if record.published_at and record.published_at[:10] >= normalized_since
             ]
         if fetch_all:
             return records
-        return records[:limit]
+        return records[: (limit or 20)]
 
-    def get_help(self) -> HelpDoc | None:
-        return HelpDoc(
-            title="bbc",
-            summary="BBC 新闻 RSS 与站内搜索。",
-            sections=[
-                HelpSection(
-                    title="Examples",
-                    lines=[
-                        "dc search bbc <keywords> --limit <n>",
-                        "dc update bbc --channel <channel> --limit <n>",
-                        "dc query --source bbc --limit <n>",
-                    ],
-                )
-            ],
-        )
+
+MANIFEST = SourceManifest(
+    identity=SourceIdentity(name="bbc", display_name="BBC", summary="BBC News RSS and site search"),
+    mode=None,
+    config_fields=(proxy_url_config(),),
+    source_actions={
+        "source.health": SourceActionSpec(name="source.health", summary="Check BBC reachability"),
+        "channel.list": SourceActionSpec(name="channel.list", summary="List built-in BBC feeds"),
+        "content.search": SourceActionSpec(
+            name="content.search",
+            summary="Search BBC site content",
+            options={
+                "query": ActionOptionSpec(name="query"),
+                "limit": ActionOptionSpec(name="limit"),
+            },
+            result_kinds=("content",),
+        ),
+        "content.update": SourceActionSpec(
+            name="content.update",
+            summary="Fetch subscribed BBC feed entries into local store",
+            options={
+                "channel": ActionOptionSpec(name="channel"),
+                "since": ActionOptionSpec(name="since"),
+                "limit": ActionOptionSpec(name="limit"),
+                "all": ActionOptionSpec(name="all"),
+            },
+            result_kinds=("content",),
+        ),
+    },
+    query=QuerySpec(
+        time_field="published_at",
+        supports_keywords=True,
+        view_id="timeline",
+        view_fields=("published_at", "source", "channel_key", "title", "url"),
+    ),
+    interaction_verbs={},
+    storage=StorageSpec(
+        table_name="bbc_records",
+        required_record_fields=(
+            "source",
+            "channel_key",
+            "record_type",
+            "external_id",
+            "title",
+            "url",
+            "snippet",
+            "published_at",
+            "fetched_at",
+            "raw_payload",
+            "dedup_key",
+        ),
+    ),
+    docs=DocsSpec(
+        examples=(
+            "dc content search --source bbc --query openai --limit 5",
+            "dc content update --source bbc --channel world --limit 10",
+            "dc content query --source bbc --limit 20",
+        ),
+    ),
+)
+
+SOURCE_CLASS = BbcSource
+BbcSource.manifest = MANIFEST

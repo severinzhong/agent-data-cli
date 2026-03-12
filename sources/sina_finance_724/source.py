@@ -7,8 +7,17 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 from core.base import BaseSource
-from core.config import ConfigFieldSpec, SourceConfigError
-from core.help import HelpDoc, HelpSection
+from core.config import SourceConfigError
+from core.manifest import (
+    ActionOptionSpec,
+    ConfigFieldSpec,
+    DocsSpec,
+    QuerySpec,
+    SourceActionSpec,
+    SourceIdentity,
+    SourceManifest,
+    StorageSpec,
+)
 from core.models import (
     ChannelRecord,
     ContentRecord,
@@ -18,6 +27,7 @@ from core.models import (
     SourceStorageSpec,
 )
 from core.protocol import ChannelNotFoundError
+from core.source_defaults import proxy_url_config
 from utils.time import utc_now_iso
 
 
@@ -41,57 +51,45 @@ class SinaFinance724Source(BaseSource):
     name = "sina_finance_724"
     display_name = "Sina Finance 7x24"
     description = "Sina Finance 7x24 live feed via app.cj.sina.com.cn API"
-    supports_updates = True
-    supports_query = True
 
     @classmethod
     def config_spec(cls) -> list[ConfigFieldSpec]:
-        return super().config_spec() + [
+        return [
+            proxy_url_config(),
             ConfigFieldSpec(
                 key="request_interval_ms",
-                value_type="string",
-                required=False,
+                type="int",
                 secret=False,
                 description="Sleep interval between page requests, default 300",
             ),
             ConfigFieldSpec(
                 key="request_max_retries",
-                value_type="string",
-                required=False,
+                type="int",
                 secret=False,
                 description="Max retry count for a failed request, default 3",
             ),
             ConfigFieldSpec(
                 key="request_retry_backoff_ms",
-                value_type="string",
-                required=False,
+                type="int",
                 secret=False,
                 description="Initial retry backoff milliseconds, default 800",
             ),
             ConfigFieldSpec(
                 key="page_size",
-                value_type="string",
-                required=False,
+                type="int",
                 secret=False,
                 description="Request batch size per page, default 50",
             ),
             ConfigFieldSpec(
                 key="max_pages",
-                value_type="string",
-                required=False,
+                type="int",
                 secret=False,
                 description="Max cursor pages to fetch in one update, default 200",
             ),
         ]
 
     def get_storage_spec(self) -> SourceStorageSpec:
-        return SourceStorageSpec(
-            source=self.name,
-            table_name="sina_finance_724_records",
-            record_schema="content",
-            supports_keywords=True,
-            time_field="published_at",
-        )
+        return super().get_storage_spec()
 
     def list_channels(self) -> list[ChannelRecord]:
         return [
@@ -125,16 +123,7 @@ class SinaFinance724Source(BaseSource):
             details="sina finance 7x24 api reachable",
         )
 
-    def get_default_query_record_type(self) -> str | None:
-        return "news"
-
-    def get_supported_record_types(self) -> tuple[str, ...]:
-        return ("news",)
-
-    def get_query_view(self, record_type: str | None = None) -> QueryViewSpec | None:
-        resolved_type = record_type or self.get_default_query_record_type()
-        if resolved_type != "news":
-            return None
+    def get_query_view(self) -> QueryViewSpec | None:
         return QueryViewSpec(
             columns=[
                 QueryColumnSpec("channel", lambda record: record.channel_key, no_wrap=True),
@@ -144,24 +133,21 @@ class SinaFinance724Source(BaseSource):
             ]
         )
 
-    def _fetch_remote_records(
+    def fetch_content(
         self,
         channel_key: str,
-        record_type: str | None = None,
-        limit: int = 10,
-        since: str | None = None,
+        since: datetime | None = None,
+        limit: int | None = 20,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
-        if record_type not in (None, "news"):
-            raise RuntimeError("sina_finance_724 query only supports record_type=news")
         if limit == 0 and since is None and not fetch_all:
             return []
 
         channel = self.get_channel(channel_key)
         since_date = self._normalize_since(since)
         page_size = self._config_int("page_size", default=50, min_value=1)
-        if since_date is None and not fetch_all and limit > 0:
-            page_size = min(page_size, limit)
+        if since_date is None and not fetch_all and (limit or 0) > 0:
+            page_size = min(page_size, limit or page_size)
         max_pages = self._config_int("max_pages", default=200, min_value=1)
         request_interval_s = self._config_int("request_interval_ms", default=300, min_value=0) / 1000
 
@@ -220,8 +206,8 @@ class SinaFinance724Source(BaseSource):
         if page_index >= max_pages:
             self._log_progress(channel_key, f"reached max_pages={max_pages}, stop pagination")
 
-        if since_date is None and not fetch_all and limit >= 0:
-            return records[:limit]
+        if since_date is None and not fetch_all and (limit or 0) >= 0:
+            return records[: (limit or 20)]
         return records
 
     def _request_feed(self, channel_key: str, params: dict[str, str]) -> dict:
@@ -318,13 +304,10 @@ class SinaFinance724Source(BaseSource):
                 oldest = date_text
         return oldest
 
-    def _normalize_since(self, since: str | None) -> str | None:
+    def _normalize_since(self, since: datetime | None) -> str | None:
         if since is None:
             return None
-        normalized = since.strip()
-        if len(normalized) != 8 or not normalized.isdigit():
-            raise RuntimeError("since must be in YYYYMMDD format")
-        return f"{normalized[:4]}-{normalized[4:6]}-{normalized[6:8]}"
+        return since.astimezone().date().isoformat()
 
     def _config_int(self, key: str, *, default: int, min_value: int) -> int:
         raw_value = self.config.get(key)
@@ -341,19 +324,61 @@ class SinaFinance724Source(BaseSource):
     def _log_progress(self, channel_key: str, message: str) -> None:
         print(f"[{self.name}:{channel_key}] {message}", file=sys.stderr, flush=True)
 
-    def get_help(self) -> HelpDoc | None:
-        return HelpDoc(
-            title="sina_finance_724",
-            summary="新浪财经 7x24 快讯源（游标分页 API）。",
-            sections=[
-                HelpSection(
-                    title="Examples",
-                    lines=[
-                        "dc channel list sina_finance_724",
-                        "dc sub add sina_finance_724 0全部",
-                        "dc update sina_finance_724 --channel 0全部 --since 20260301",
-                        "dc query --source sina_finance_724 --channel 0全部 --since 20260301 --limit 20",
-                    ],
-                )
-            ],
-        )
+MANIFEST = SourceManifest(
+    identity=SourceIdentity(
+        name="sina_finance_724",
+        display_name="Sina Finance 7x24",
+        summary="Sina Finance 7x24 live feed via app.cj.sina.com.cn API",
+    ),
+    mode=None,
+    config_fields=tuple(SinaFinance724Source.config_spec()),
+    source_actions={
+        "source.health": SourceActionSpec(name="source.health", summary="Check Sina Finance API"),
+        "channel.list": SourceActionSpec(name="channel.list", summary="List Sina 7x24 tags"),
+        "content.update": SourceActionSpec(
+            name="content.update",
+            summary="Fetch subscribed Sina 7x24 items into local store",
+            options={
+                "channel": ActionOptionSpec(name="channel"),
+                "since": ActionOptionSpec(name="since"),
+                "limit": ActionOptionSpec(name="limit"),
+                "all": ActionOptionSpec(name="all"),
+            },
+            result_kinds=("content",),
+        ),
+    },
+    query=QuerySpec(
+        time_field="published_at",
+        supports_keywords=True,
+        view_id="sina_finance_724.news",
+        view_fields=("channel", "time", "title", "url"),
+    ),
+    interaction_verbs={},
+    storage=StorageSpec(
+        table_name="sina_finance_724_records",
+        required_record_fields=(
+            "source",
+            "channel_key",
+            "record_type",
+            "external_id",
+            "title",
+            "url",
+            "snippet",
+            "published_at",
+            "fetched_at",
+            "raw_payload",
+            "dedup_key",
+        ),
+    ),
+    docs=DocsSpec(
+        examples=(
+            "dc channel list sina_finance_724",
+            "dc sub add --source sina_finance_724 --channel 0全部",
+            "dc content update --source sina_finance_724 --channel 0全部 --since 20260301",
+            "dc content query --source sina_finance_724 --channel 0全部 --since 20260301 --limit 20",
+        ),
+    ),
+)
+
+SOURCE_CLASS = SinaFinance724Source
+SinaFinance724Source.manifest = MANIFEST

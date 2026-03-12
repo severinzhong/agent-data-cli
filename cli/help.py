@@ -3,217 +3,125 @@ from __future__ import annotations
 from rich.console import Console
 
 from core.help import HelpDoc, HelpSection
-
-
-COMMAND_HELP: dict[str, HelpDoc] = {
-    "query": HelpDoc(
-        title="query",
-        summary="从本地数据库读取记录并按条件过滤 (local database query).",
-        sections=[
-            HelpSection(
-                title="语义",
-                lines=[
-                    "query 永远只读取本地数据库。",
-                    "--keywords 只是过滤条件，不会触发远端搜索。",
-                    "--since 支持 YYYYMMDD 或相对时间: 1w/1d/3h/5m。",
-                    "--since 且未显式传 --limit 时，默认等价于 --all。",
-                    "默认按 published_at 从新到旧排序。",
-                ],
-            ),
-            HelpSection(
-                title="常用参数",
-                lines=[
-                    "--source",
-                    "--channel",
-                    "--group",
-                    "--keywords",
-                    "--type",
-                    "--since",
-                    "--limit",
-                    "--all",
-                    "--jsonl",
-                ],
-            ),
-            HelpSection(
-                title="Examples",
-                lines=[
-                    "dc query --source bbc --limit 20",
-                    "dc query --group middle-east --keywords 伊朗 --limit 20",
-                    "dc query --source ashare --channel sh600519 --limit 30",
-                    "dc query --source bbc --since 3h --jsonl",
-                ],
-            ),
-        ],
-    ),
-    "search": HelpDoc(
-        title="search",
-        summary="对单个 source 执行远端发现动作。",
-        sections=[
-            HelpSection(
-                title="语义",
-                lines=[
-                    "search 走远端 source，不查本地数据库。",
-                    "搜索结果可以是 channel 或 content。",
-                ],
-            ),
-            HelpSection(
-                title="常用参数",
-                lines=[
-                    "--channel",
-                    "--limit",
-                    "--jsonl",
-                ],
-            ),
-            HelpSection(
-                title="Examples",
-                lines=[
-                    "dc search ashare 中国移动",
-                    "dc search bbc openai --limit 5",
-                    "dc search bbc openai --jsonl",
-                ],
-            ),
-        ],
-    ),
-    "update": HelpDoc(
-        title="update",
-        summary="从远端 source 拉取数据并写入本地数据库。",
-        sections=[
-            HelpSection(
-                title="语义",
-                lines=[
-                    "支持单 source/channel 更新。",
-                    "支持 --group 批量更新。",
-                    "--since 支持 YYYYMMDD 或相对时间: 1w/1d/3h/5m。",
-                    "--dry-run 只展示将要执行的具体目标。",
-                ],
-            ),
-            HelpSection(
-                title="Examples",
-                lines=[
-                    "dc update ashare --channel sh600519 --limit 30",
-                    "dc update --group news --since 20260308",
-                    "dc update --group stocks --dry-run",
-                ],
-            ),
-        ],
-    ),
-    "sub": HelpDoc(
-        title="sub",
-        summary="管理本地订阅列表。",
-        sections=[
-            HelpSection(
-                title="语义",
-                lines=[
-                    "sub add/remove/list 都只操作本地数据库。",
-                    "sub add 可用 --name 覆盖默认 display_name。",
-                ],
-            ),
-            HelpSection(
-                title="Examples",
-                lines=[
-                    "dc sub add ashare sh000001 --name 上证指数",
-                    "dc sub remove bbc world",
-                    "dc sub list --source ashare",
-                ],
-            ),
-        ],
-    ),
-}
+from core.manifest import to_cli_flag
+from core.registry import SourceRegistry
 
 
 def build_global_help_doc() -> HelpDoc:
-    return HelpDoc(
-        title="data-cli",
-        summary="统一的多信息源 CLI。",
-        sections=[
-            HelpSection(
-                title="命令速览",
-                lines=[
-                    "source: 查看 source 列表和健康状态。例：dc source list",
-                    "channel: 查看 channel 列表。例：dc channel list <source>",
-                    "group: 管理分组。例：dc group list",
-                    "search: 对单个 source 做远端发现。例：dc search <source> <query>",
-                    "sub: 管理订阅。例：dc sub list",
-                    "update: 从远端拉取并入库。例：dc update <source> 或 dc update --group <group>",
-                    "query: 查询本地数据库。例：dc query --limit 20",
-                    "config: 管理 source 配置。例：dc config list",
-                    "help: 查看帮助。例：dc help query 或 dc help <source>",
-                ],
-            ),
-            HelpSection(
-                title="Examples",
-                lines=[
-                    "dc help",
-                    "dc help search",
-                    "dc help query",
-                    "dc help <source>",
-                    "dc update --group <group> --dry-run",
-                    "dc query --keywords <keywords> --limit 20",
-                ],
-            ),
-        ],
-    )
+    from cli.commands import build_global_help_doc as _build_global_help_doc
+
+    return _build_global_help_doc()
 
 
 def build_command_help_doc(command: str) -> HelpDoc:
-    try:
-        return COMMAND_HELP[command]
-    except KeyError as exc:
-        raise RuntimeError(f"unknown help topic: {command}") from exc
+    from cli.commands import build_command_help_doc as _build_command_help_doc
+
+    return _build_command_help_doc(command)
 
 
-def build_source_help_doc(source) -> HelpDoc:
-    source_help = source.get_help()
-    if source_help is None:
-        source_help = HelpDoc(
-            title=source.display_name or source.name,
-            summary=source.description,
-            sections=[],
-        )
-
-    supported_actions = []
-    if source.describe().supports_search:
-        supported_actions.append("search")
-    if source.describe().supports_subscriptions:
-        supported_actions.extend(["subscribe", "unsubscribe", "list_subscriptions"])
-    if source.describe().supports_updates:
-        supported_actions.append("update")
-    if source.describe().supports_query:
-        supported_actions.append("query")
-
-    dynamic_sections = [
+def build_source_help_doc(registry: SourceRegistry, source_name: str) -> HelpDoc:
+    manifest = registry.get_manifest(source_name)
+    resolver = registry.get_resolver(source_name)
+    source = registry.build(source_name)
+    sections: list[HelpSection] = [
         HelpSection(
-            title="Supported Actions",
-            lines=supported_actions,
+            title="Actions",
+            lines=_build_action_lines(manifest, resolver),
         ),
     ]
-
-    config_specs = source.config_spec()
-    if config_specs:
-        dynamic_sections.append(
+    if manifest.mode is not None:
+        sections.append(
             HelpSection(
-                title="Config",
+                title="Mode",
                 lines=[
-                    f"{spec.key} ({spec.value_type}){' [required]' if spec.required else ''}"
-                    for spec in config_specs
+                    f"default: {manifest.mode.default}",
+                    f"effective: {source.resolve_mode()}",
+                    *[f"{choice.value}: {choice.summary}" for choice in manifest.mode.choices],
                 ],
             )
         )
-
-    record_types = source.get_supported_record_types()
-    if record_types:
-        dynamic_sections.append(
-            HelpSection(
-                title="Types",
-                lines=list(record_types),
+    config_lines = []
+    for field_spec in resolver.visible_config_fields():
+        line = f"{field_spec.key} ({field_spec.type})"
+        if field_spec.inherits_from_cli:
+            line = f"{line} <- cli.{field_spec.inherits_from_cli}"
+        if field_spec.obtain_hint:
+            line = f"{line} | {field_spec.obtain_hint}"
+        config_lines.append(line)
+    if config_lines:
+        sections.append(HelpSection(title="Config", lines=config_lines))
+    if manifest.query is not None:
+        query_lines = [f"time_field: {manifest.query.time_field or 'none'}"]
+        if manifest.query.supports_keywords:
+            query_lines.append("supports --keywords")
+        else:
+            query_lines.append("does not support --keywords")
+        sections.append(HelpSection(title="Query", lines=query_lines))
+    if manifest.interaction_verbs:
+        verb_lines = []
+        for verb_name, verb in manifest.interaction_verbs.items():
+            status = resolver.verb_status(verb_name)
+            if status.status == "mode_unsupported":
+                continue
+            line = verb_name
+            if status.status == "requires_config":
+                line = f"{line} (requires config: {', '.join(status.missing_keys)})"
+            verb_lines.append(line)
+            for param in verb.params:
+                param_status = resolver.param_status(verb_name, param.name)
+                if param_status.status == "mode_unsupported":
+                    continue
+                verb_lines.append(f"{to_cli_flag(param.name)} ({param.type})")
+        if verb_lines:
+            sections.append(HelpSection(title="Interact", lines=verb_lines))
+    if manifest.docs is not None:
+        if manifest.docs.notes:
+            sections.append(HelpSection(title="Notes", lines=list(manifest.docs.notes)))
+        if manifest.docs.examples:
+            sections.append(
+                HelpSection(
+                    title="Examples",
+                    lines=[_strip_command_prefix(line) for line in manifest.docs.examples],
+                )
             )
-        )
-
     return HelpDoc(
-        title=source_help.title,
-        summary=source_help.summary,
-        sections=[*source_help.sections, *dynamic_sections],
+        title=source_name,
+        summary=manifest.identity.summary,
+        sections=sections,
     )
+
+
+def _build_action_lines(manifest, resolver) -> list[str]:
+    lines: list[str] = []
+    for action_name in (
+        "source.health",
+        "channel.list",
+        "channel.search",
+        "content.search",
+        "content.update",
+        "content.query",
+        "content.interact",
+    ):
+        status = resolver.action_status(action_name)
+        if status.status == "mode_unsupported":
+            continue
+        label = action_name
+        if status.status == "requires_config":
+            label = f"{label} (requires config: {', '.join(status.missing_keys)})"
+        elif status.status == "unsupported":
+            continue
+        lines.append(label)
+        if action_name in manifest.source_actions:
+            action = manifest.source_actions[action_name]
+            for option_name in action.options:
+                option_status = resolver.option_status(action_name, option_name)
+                if option_status.status == "mode_unsupported":
+                    continue
+                option_line = f"  {to_cli_flag(option_name)}"
+                if option_status.status == "requires_config":
+                    option_line = f"{option_line} (requires config: {', '.join(option_status.missing_keys)})"
+                lines.append(option_line)
+    return lines
 
 
 def render_help_doc(console: Console, doc: HelpDoc) -> None:
@@ -227,5 +135,11 @@ def render_help_doc(console: Console, doc: HelpDoc) -> None:
 
 
 def print_help_doc(doc: HelpDoc) -> None:
-    console = Console()
-    render_help_doc(console, doc)
+    render_help_doc(Console(), doc)
+
+
+def _strip_command_prefix(line: str) -> str:
+    for prefix in ("dc ", "uv run python -m cli ", ".venv/bin/python -m cli "):
+        if line.startswith(prefix):
+            return line[len(prefix) :]
+    return line

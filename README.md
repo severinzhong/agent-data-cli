@@ -1,314 +1,230 @@
 # data-cli
 
-一个本地使用的多信息源 CLI。
+一个本地使用的多信息源内容 CLI。
 
-当前已经接入 3 个 source：
+## 当前状态
 
-- `bbc`
-- `hackernews`
-- `ashare`
+当前实现以 [docs/superpowers/specs/2026-03-12-data-cli-core-redesign-design.md](docs/superpowers/specs/2026-03-12-data-cli-core-redesign-design.md) 为准，核心语义已经切到资源优先命令面：
 
-统一支持这些操作：
+- core 只保留两层资源模型：`source` / `channel`
+- `content` 只是 CLI 命名空间，不是第三层核心资源
+- 顶层命令固定为：`source`、`channel`、`content`、`sub`、`group`、`config`、`help`
+- `channel search` 和 `content search` 分离
+- `content search` 只做远端发现，不落库
+- `content update` 只同步已订阅目标，并落库
+- `content query` 永远只查本地库
+- `content interact` 是显式远端副作用协议，verb 由 source 私有声明
+- `--type` 已经移除
+- source 通过 `MANIFEST + SOURCE_CLASS` 自动发现，不再手改 core registry
 
-- `help`
-- `source list`
-- `source health <source>`
-- `channel list <source>`
-- `config list/set/unset/check`
-- `group create/delete/list/show/add/remove`
-- `search <source> <query>`
-- `sub add/remove/list`
-- `update <source> [--channel ...]` 或 `update --group ...`
-- `query [filters...]`
+## 当前内置 Source
+
+当前内置 source 及能力矩阵：
+
+| source | channel search | content search | update | query | interact |
+| --- | --- | --- | --- | --- | --- |
+| `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
+| `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
+| `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
+| `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
+
+补充说明：
+
+- 当前内置 source 都没有声明 `mode`
+- core 已实现 `content.interact` 协议，但当前内置 source 还没有公开 verbs
+- `wechatarticle` 是 discovery-only source，只支持远端内容发现
+- `rsshub` 依赖可用的 RSSHub 实例地址和路由索引地址
 
 ## 环境
 
 - Python `3.12+`
 - `uv`
-- 依赖安装：
+
+安装依赖：
 
 ```bash
 uv sync
 ```
 
-## 启动方式
+## 启动
 
-推荐：
+推荐直接运行模块入口：
 
 ```bash
 uv run python -m cli source list
 ```
 
-也可以直接用虚拟环境里的 Python：
-
-```bash
-.venv/bin/python -m cli source list
-```
-
-CLI 输出目前使用 `rich` 渲染文本表格。
-
-## 当前 Source
-
-### `bbc`
-
-当前内置 channel：
-
-- `world`
-- `business`
-- `technology`
-
-### `hackernews`
-
-当前内置 channel：
-
-- `top`
-- `new`
-- `ask`
-- `show`
-- `jobs`
-
-### `ashare`
-
-当前支持：
-
-- 搜索股票/指数代码
-- 用 `sh600519`、`sz000001` 这种 `channel_key` 查询和订阅
-- 历史 `day` 序列数据
-
-当前内置 channel：
-
-- `sh000001`
-- `sz399001`
-- `sz399006`
-
-当前 `ashare` 的核心数据类型只有：
-
-- `day`
+当前建议直接使用 `uv run python -m cli ...`。
 
 ## 常用命令
 
 ### 帮助
 
-查看全局帮助：
-
 ```bash
 uv run python -m cli help
-```
-
-查看某个泛用命令帮助：
-
-```bash
-uv run python -m cli help query
-uv run python -m cli help update
-```
-
-查看某个 source 的专用帮助：
-
-```bash
+uv run python -m cli help content search
+uv run python -m cli help content update
+uv run python -m cli help content query
+uv run python -m cli help content interact
 uv run python -m cli help ashare
 uv run python -m cli help bbc
-uv run python -m cli help hackernews
+uv run python -m cli help rsshub
 ```
 
-### 查看所有 source
+### Source 与 Channel
 
 ```bash
 uv run python -m cli source list
-```
-
-### 查看某个 source 的健康状态
-
-```bash
 uv run python -m cli source health bbc
-uv run python -m cli source health hackernews
-uv run python -m cli source health ashare
-```
-
-### 查看某个 source 的 channel
-
-```bash
 uv run python -m cli channel list bbc
-uv run python -m cli channel list hackernews
 uv run python -m cli channel list ashare
 ```
 
 ### 配置
 
-查看所有 source 配置：
+查看 CLI 级配置：
 
 ```bash
-uv run python -m cli config list
+uv run python -m cli config cli list
+uv run python -m cli config cli explain proxy_url
 ```
 
-查看某个 source 配置：
+查看和设置 source 配置：
 
 ```bash
-uv run python -m cli config list ashare
-uv run python -m cli config list bbc
+uv run python -m cli config source list rsshub
+uv run python -m cli config source explain rsshub base_url
+uv run python -m cli config source set rsshub base_url https://rsshub.isrss.com
+uv run python -m cli config source unset rsshub base_url
 ```
 
-设置配置：
+检查 source 配置状态：
 
 ```bash
-uv run python -m cli config set bbc proxy_url http://127.0.0.1:7890 --type string
+uv run python -m cli config source check bbc
+uv run python -m cli config source check bbc --for content.search
+uv run python -m cli config source check rsshub --for content.update
 ```
 
-删除配置：
+规则：
 
-```bash
-uv run python -m cli config unset bbc proxy_url
-```
-
-检查某个 source 的配置声明和当前配置状态：
-
-```bash
-uv run python -m cli config check ashare
-uv run python -m cli config check bbc
-```
-
-说明：
-
-- 所有 source 默认直连
-- 只有配置了 `proxy_url` 的 source 才会使用代理
-- 当前本地已经为 `bbc` 配置了 `http://127.0.0.1:7890`
+- `config source check --for` 只接受 canonical action id
+- `content.interact` 额外要求 `--verb`
+- `config set` 会按 manifest schema 做基础校验，当前至少覆盖 `enum/int/bool/json`
 
 ### 分组
 
-创建分组：
-
 ```bash
 uv run python -m cli group create middle-east
-```
-
-查看分组列表：
-
-```bash
-uv run python -m cli group list
-```
-
-向分组添加 source：
-
-```bash
-uv run python -m cli group add middle-east source bbc
-uv run python -m cli group add middle-east source hackernews
-```
-
-向分组添加 channel：
-
-```bash
-uv run python -m cli group add stocks channel ashare sh600519
-```
-
-查看分组成员：
-
-```bash
+uv run python -m cli group add-source middle-east bbc
+uv run python -m cli group add-channel stocks ashare sh600519
 uv run python -m cli group show middle-east
+uv run python -m cli group list
+uv run python -m cli group remove-channel stocks ashare sh600519
+uv run python -m cli group delete middle-east
 ```
 
-删除分组成员：
+### Channel 搜索
 
 ```bash
-uv run python -m cli group remove middle-east source bbc
-uv run python -m cli group remove stocks channel ashare sh600519
+uv run python -m cli channel search --source ashare --query 贵州茅台 --limit 5
+uv run python -m cli channel search --source rsshub --query youtube --limit 20
 ```
 
-### 搜索
+规则：
+
+- `channel search` 只做远端 channel 发现
+- `channel search` 不落库
+- `--source` 和 `--query` 必填
+- 默认 `--limit 20`
+
+### Content 搜索
 
 ```bash
-uv run python -m cli search bbc openai --limit 3
-uv run python -m cli search hackernews openai --limit 3
-uv run python -m cli search ashare 贵州茅台 --limit 5
-uv run python -m cli search ashare 中国移动 --limit 5
+uv run python -m cli content search --source bbc --query openai --limit 5
+uv run python -m cli content search --source hackernews --query openai --limit 20
+uv run python -m cli content search --source wechatarticle --query OpenAI --limit 20
 ```
 
-说明：
+规则：
 
-- `search` 是远端发现动作，不查本地数据库
-- 搜索结果可以是不同 kind，例如：
-  - `channel`
-  - `content`
-- `ashare search` 当前返回的是 `channel` 结果
-- `ashare search` 会使用专用列显示：`name / channel / url`
-- 如果未来某个 source 的搜索结果混合多种 kind，CLI 会按 kind 分段显示
+- `content search` 只做远端内容发现，不落库
+- `--channel` 与 `--query` 至少提供一个
+- `--since` 是否支持由 source capability 决定
+- 默认 `--limit 20`
 
 ### 订阅
 
 ```bash
-uv run python -m cli sub add bbc world
-uv run python -m cli sub add hackernews top
-uv run python -m cli sub add ashare sh600519
-```
-
-查看当前订阅：
-
-```bash
+uv run python -m cli sub add --source bbc --channel world
+uv run python -m cli sub add --source hackernews --channel top
+uv run python -m cli sub add --source ashare --channel sh600519
 uv run python -m cli sub list
 uv run python -m cli sub list --source bbc
-```
-
-取消订阅：
-
-```bash
-uv run python -m cli sub remove bbc world
+uv run python -m cli sub remove --source bbc --channel world
 ```
 
 ### 更新
 
-更新某个 source 的某个 channel：
-
 ```bash
-uv run python -m cli update bbc --channel world --limit 5
-uv run python -m cli update hackernews --channel top --limit 10
-uv run python -m cli update ashare --channel sh600519 --type day --limit 100
-uv run python -m cli update ashare --channel sh600519 --type day --since 20260301
-uv run python -m cli update ashare --channel sh600519 --all
-uv run python -m cli update --group stocks --limit 30
-uv run python -m cli update --group stocks --dry-run
+uv run python -m cli content update --source bbc --channel world --limit 10
+uv run python -m cli content update --source hackernews --channel top --limit 20
+uv run python -m cli content update --source ashare --channel sh600519 --since 20260301
+uv run python -m cli content update --source ashare --channel sh600519 --all
+uv run python -m cli content update --group stocks
+uv run python -m cli content update --group stocks --dry-run
 ```
 
-说明：
+规则：
 
-- `update` 会把结果写入本地数据库
-- 数据库文件默认是当前目录下的 `data-cli.db`
-- 内容通过统一 `dedup_key` 去重
-- `ashare` 不带 `--type` 时，默认按 `day` 更新
-- 当前 `ashare` 只支持 `--type day`
-- `--limit` 表示最近 N 条
-- `--all` 表示拉取该 type 的全量历史
-- `--since YYYYMMDD` 表示从某天开始拉到最新
-- `update --group` 会先把 group 展开成具体更新目标
-- group 中的 `source` 成员只会展开到该 source 当前已订阅的 channel
-- 如果 group 同时包含 `source` 和 `channel`，重复目标会先去重
-- `--dry-run` 只展示将要更新的具体目标，不会真的请求远端
+- `content update` 只允许更新已订阅目标
+- `--source` 与 `--group` 二选一
+- `--channel` 只能和 `--source` 一起用
+- `--all` 与 `--since` 互斥
+- `--all` 与 `--limit` 互斥
+- `--dry-run` 只允许和 `content update --group ...` 一起用
+- 默认 `--limit 20`，且按 concrete channel target 生效，不是整批全局总量
 
 ### 查询
 
 ```bash
-uv run python -m cli query --source bbc --limit 3
-uv run python -m cli query --source hackernews --channel top --limit 3
-uv run python -m cli query --source ashare --channel sh600519 --type day --limit 60
-uv run python -m cli query --source ashare --channel sh600519 --type day --since 20260301
-uv run python -m cli query --keywords 伊朗 --limit 20
-uv run python -m cli query --group middle-east --keywords 伊朗 --limit 20
+uv run python -m cli content query --source bbc --limit 20
+uv run python -m cli content query --source hackernews --channel top --limit 20
+uv run python -m cli content query --source ashare --channel sh600519 --since 20260301 --limit 60
+uv run python -m cli content query --keywords 伊朗 --limit 20
+uv run python -m cli content query --group middle-east --keywords 伊朗 --limit 20
 ```
 
-说明：
+规则：
 
-- `query` 永远只查本地数据库
-- `--keywords` 只是过滤条件，不会把 `query` 变成远端搜索
-- `ashare query` 现在只从数据库读取 `day` 数据
-- 返回顺序是时间从新到旧
-- 会使用专用表格列显示：`channel / date / open / close / high / low / volume / amount`
-- 如果多 source 查询结果的原生视图 schema 一致，会合并成一张表
-- 如果 schema 不一致，会退化成一个按时间排序的通用时间线表
+- `content query` 永远只查本地数据库
+- `--keywords` 只是本地过滤条件
+- `--group` 只做本地过滤，不触发远端展开和订阅检查
+- `--channel` 必须和 `--source` 一起用
+- `--channel` 不能和 `--group` 一起用
+- `--all` 与 `--limit` 互斥
+- 默认 `--limit 20`
 
-当前 `query/update` 的 typed 参数：
+### Interact
+
+命令形态：
 
 ```bash
---type <type>
---limit <n>
---all
---since <YYYYMMDD>
+content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
+```
+
+当前状态：
+
+- core 已实现两段式解析、`content_ref` 校验和审计
+- 当前内置 source 还没有公开任何 `interaction_verbs`
+- 因此现在可以把它看成“协议已就位，待 source 接线”
+
+`content_ref` 形式：
+
+```text
+<source>:content/<percent-encoded-source-id>
 ```
 
 ## 数据文件
@@ -319,45 +235,30 @@ uv run python -m cli query --group middle-east --keywords 伊朗 --limit 20
 data-cli.db
 ```
 
-内容数据按 source 物理隔离存储，当前表为：
+当前数据库会保存：
 
-- `bbc_records`
-- `hackernews_records`
-- `ashare_records`
+- `channels`
+- `subscriptions`
+- `groups`
+- `group_members`
+- `sync_state`
+- `health_checks`
+- `source_configs`
+- `cli_configs`
+- `action_audits`
+- 各 source 的内容表，例如：
+  - `bbc_records`
+  - `hackernews_records`
+  - `ashare_records`
+  - `rsshub_records`
+  - `sina_finance_724_records`
+  - `wechatarticle_records`
 
 说明：
 
-- 不再使用统一的 `content_records` 表
-- `query` 仍是统一入口，但内部按 source 表查询后在 Python 层归并
-- 此次为破坏性重构，旧测试库不做迁移，直接删除 `data-cli.db` 重建
-
-这个文件会保存：
-
-- source 元数据
-- channel
-- subscriptions
-- content records
-- sync state
-- health checks
-- source configs
-
-### source_configs
-
-source 配置统一保存在 SQLite 的 `source_configs` 表中。
-
-每条配置包含：
-
-- `source`
-- `key`
-- `value`
-- `value_type`
-- `is_secret`
-- `updated_at`
-
-当前建议约定：
-
-- `proxy_url`：通用代理配置项
-- 没有配置 `proxy_url`：source 走直连
+- 内容记录按 source 物理分表存储，不再使用统一 `content_records`
+- `content query` 仍是统一入口，但内部按 source 表查询后再归并
+- 这是破坏性重构阶段，旧数据库不做兼容迁移
 
 ## 测试
 
@@ -375,26 +276,21 @@ env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u AL
 http://127.0.0.1:9222
 ```
 
-对应测试会验证：
-
-- 能获取 `ws_url`
-- 能获取 `user_agent`
-- 能打开 `https://example.com`
-
 ## 当前实现边界
 
-当前版本是第一版骨架，目标是逻辑清晰，不做复杂兜底。
+当前版本优先保证协议边界清晰，不做兼容层和兜底。
 
-目前特点：
+代码分层：
 
-- source 逻辑都收在各自的 `sources/<name>/source.py`
-- 公共协议在 `core/`
-- 抓取手段在 `fetchers/`
-- 数据库存储在 `store/`
-- CLI 入口在 `cli/`
+- `cli/`：参数解析、命令分发、输出格式化
+- `core/`：manifest、capability、base class、registry、shared model
+- `fetchers/`：HTTP / 浏览器抓取
+- `store/`：SQLite 存储、去重、sync state、health、config、audit
+- `sources/<name>/source.py`：各 source 自己的站点逻辑
 
-后续扩展新 source 时，正常做法是：
+新增 source 的标准路径：
 
 1. 新建 `sources/<name>/source.py`
 2. 继承 `BaseSource`
-3. 在 `core/registry.py` 注册
+3. 在该文件中声明 `MANIFEST` 与 `SOURCE_CLASS`
+4. 不修改中心 registry

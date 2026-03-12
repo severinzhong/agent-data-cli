@@ -1,33 +1,94 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
+import re
+from urllib.parse import quote_from_bytes, unquote_to_bytes
+
+
+_CONTENT_REF_SOURCE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_UNRESERVED_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedContentRef:
+    source: str
+    opaque_id: str
+    encoded_opaque_id: str
+
+
+def build_content_ref(source: str, opaque_id: str) -> str:
+    if not _CONTENT_REF_SOURCE_RE.fullmatch(source):
+        raise ValueError(f"invalid content ref source: {source}")
+    if opaque_id == "":
+        raise ValueError("content ref opaque id cannot be empty")
+    encoded_opaque_id = quote_from_bytes(opaque_id.encode("utf-8"), safe=_UNRESERVED_CHARS)
+    return f"{source}:content/{encoded_opaque_id}"
+
+
+def parse_content_ref(ref: str) -> ParsedContentRef:
+    try:
+        source, encoded_opaque_id = ref.split(":content/", 1)
+    except ValueError as exc:
+        raise ValueError(f"invalid content ref delimiter: {ref}") from exc
+    if not _CONTENT_REF_SOURCE_RE.fullmatch(source):
+        raise ValueError(f"invalid content ref source: {source}")
+    if encoded_opaque_id == "":
+        raise ValueError("content ref opaque id cannot be empty")
+    _validate_percent_encoded_opaque_id(encoded_opaque_id)
+    try:
+        opaque_id = unquote_to_bytes(encoded_opaque_id).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"invalid content ref utf-8 payload: {encoded_opaque_id}") from exc
+    return ParsedContentRef(
+        source=source,
+        opaque_id=opaque_id,
+        encoded_opaque_id=encoded_opaque_id,
+    )
+
+
+def _validate_percent_encoded_opaque_id(encoded_opaque_id: str) -> None:
+    index = 0
+    while index < len(encoded_opaque_id):
+        char = encoded_opaque_id[index]
+        if char in _UNRESERVED_CHARS:
+            index += 1
+            continue
+        if char != "%":
+            raise ValueError(f"invalid content ref percent encoding: {encoded_opaque_id}")
+        if index + 2 >= len(encoded_opaque_id):
+            raise ValueError(f"invalid content ref percent encoding: {encoded_opaque_id}")
+        pair = encoded_opaque_id[index + 1 : index + 3]
+        if any(digit not in "0123456789abcdefABCDEF" for digit in pair):
+            raise ValueError(f"invalid content ref percent encoding: {encoded_opaque_id}")
+        index += 3
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilityStatus:
+    status: str
+    missing_keys: tuple[str, ...] = ()
+    reason: str = ""
 
 
 @dataclass(slots=True)
 class SourceDescriptor:
     name: str
     display_name: str
-    description: str
-    supports_search: bool
-    supports_subscriptions: bool
-    supports_updates: bool
-    supports_query: bool
-    search_missing_required_configs: tuple[str, ...] = ()
-    subscribe_missing_required_configs: tuple[str, ...] = ()
-    update_missing_required_configs: tuple[str, ...] = ()
-    query_missing_required_configs: tuple[str, ...] = ()
-    required_config_ok: bool = True
-    missing_required_configs: tuple[str, ...] = ()
+    summary: str
+    effective_mode: str | None
+    action_statuses: dict[str, CapabilityStatus] = field(default_factory=dict)
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class SourceStorageSpec:
     source: str
     table_name: str
-    record_schema: str
+    required_record_fields: tuple[str, ...]
+    time_field: str | None
     supports_keywords: bool
-    time_field: str
+    view_id: str | None = None
+    view_fields: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -66,6 +127,7 @@ class ContentRecord:
     fetched_at: str | None
     raw_payload: str
     dedup_key: str
+    content_ref: str | None = None
 
 
 @dataclass(slots=True)
@@ -87,15 +149,37 @@ class SearchResult:
     result_kind: str
     channel_key: str | None = None
     metadata: dict[str, str] | None = None
+    content_ref: str | None = None
 
 
 @dataclass(slots=True)
 class UpdateSummary:
     source: str
     channel_key: str | None
-    record_type: str | None
     saved_count: int
     skipped_count: int
+
+
+@dataclass(slots=True)
+class InteractionResult:
+    ref: str
+    verb: str
+    status: str
+    error: str | None = None
+
+
+@dataclass(slots=True)
+class ActionAuditRecord:
+    executed_at: str
+    action: str
+    source: str
+    mode: str | None
+    target_kind: str
+    targets: tuple[str, ...]
+    params_summary: str
+    status: str
+    error: str | None
+    dry_run: bool
 
 
 @dataclass(slots=True)
@@ -129,7 +213,7 @@ class QueryViewSpec:
 @dataclass(slots=True)
 class SearchColumnSpec:
     header: str
-    getter: Callable[[SearchResult], str]
+    getter: Callable[[SearchResult | ChannelRecord], str]
     justify: str = "left"
     max_width: int | None = None
     no_wrap: bool = False

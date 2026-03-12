@@ -7,8 +7,17 @@ from datetime import datetime, timezone
 from urllib.parse import quote_plus
 
 from core.base import BaseSource
-from core.help import HelpDoc, HelpSection
+from core.manifest import (
+    ActionOptionSpec,
+    DocsSpec,
+    QuerySpec,
+    SourceActionSpec,
+    SourceIdentity,
+    SourceManifest,
+    StorageSpec,
+)
 from core.models import ChannelRecord, ContentRecord, HealthRecord, SearchResult, SourceStorageSpec
+from core.source_defaults import proxy_url_config
 from utils.text import clean_text
 from utils.time import utc_now_iso
 
@@ -41,19 +50,10 @@ class HackerNewsSource(BaseSource):
     name = "hackernews"
     display_name = "Hacker News"
     description = "Hacker News public APIs"
-    supports_search = True
-    supports_updates = True
-    supports_query = True
     _MAX_HITS_PER_PAGE = 1000
 
     def get_storage_spec(self) -> SourceStorageSpec:
-        return SourceStorageSpec(
-            source=self.name,
-            table_name="hackernews_records",
-            record_schema="content",
-            supports_keywords=True,
-            time_field="published_at",
-        )
+        return super().get_storage_spec()
 
     def list_channels(self) -> list[ChannelRecord]:
         channels = []
@@ -83,12 +83,17 @@ class HackerNewsSource(BaseSource):
             details="hackernews topstories reachable",
         )
 
-    def search(
+    def search_content(
         self,
-        query: str,
-        channel: str | None = None,
-        limit: int = 10,
+        channel_key: str | None = None,
+        query: str | None = None,
+        since: datetime | None = None,
+        limit: int = 20,
     ) -> list[SearchResult]:
+        _ = channel_key
+        _ = since
+        if not query:
+            return []
         url = (
             "https://hn.algolia.com/api/v1/search?"
             f"query={quote_plus(query)}&tags=story"
@@ -111,26 +116,23 @@ class HackerNewsSource(BaseSource):
             )
         return results
 
-    def _fetch_remote_records(
+    def fetch_content(
         self,
         channel_key: str,
-        record_type: str | None = None,
-        limit: int = 10,
-        since: str | None = None,
+        since: datetime | None = None,
+        limit: int | None = 20,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
-        if record_type not in (None, channel_key):
-            raise RuntimeError(f"hackernews query only supports record_type={channel_key}")
         channel = self.get_channel(channel_key)
         normalized_since = None
         if since is not None:
-            normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
+            normalized_since = since.astimezone().date().isoformat()
         if fetch_all and since is not None:
             return self._fetch_windowed_since(channel.channel_key, channel.url, since)
         if not fetch_all:
             request_url = channel.url
             if normalized_since is not None:
-                request_url = f"{request_url}&numericFilters=created_at_i>={self._since_epoch(since or '')}"
+                request_url = f"{request_url}&numericFilters=created_at_i>={self._since_epoch(since)}"
             payload = self.http.get_json(request_url)
             records = self._records_from_hits(channel.channel_key, payload["hits"])
             if normalized_since is not None:
@@ -139,7 +141,7 @@ class HackerNewsSource(BaseSource):
                     for record in records
                     if record.published_at and record.published_at[:10] >= normalized_since
                 ]
-            return records[:limit]
+            return records[: (limit or 20)]
 
         records: list[ContentRecord] = []
         seen_dedup_keys: set[str] = set()
@@ -148,7 +150,7 @@ class HackerNewsSource(BaseSource):
         paged_base_url = f"{paged_base_url}&hitsPerPage={self._MAX_HITS_PER_PAGE}"
         if normalized_since is not None:
             paged_base_url = (
-                f"{paged_base_url}&numericFilters=created_at_i>={self._since_epoch(since or '')}"
+                f"{paged_base_url}&numericFilters=created_at_i>={self._since_epoch(since)}"
             )
         page = 0
         while True:
@@ -215,7 +217,7 @@ class HackerNewsSource(BaseSource):
         self,
         channel_key: str,
         base_url: str,
-        since: str,
+        since: datetime,
     ) -> list[ContentRecord]:
         records: list[ContentRecord] = []
         seen_dedup_keys: set[str] = set()
@@ -343,9 +345,8 @@ class HackerNewsSource(BaseSource):
                 oldest = date
         return oldest
 
-    def _since_epoch(self, since: str) -> int:
-        parsed = datetime.strptime(since, "%Y%m%d").replace(tzinfo=timezone.utc)
-        return int(parsed.timestamp())
+    def _since_epoch(self, since: datetime) -> int:
+        return int(since.astimezone(timezone.utc).timestamp())
 
     def _now_epoch(self) -> int:
         return int(datetime.now(timezone.utc).timestamp())
@@ -356,18 +357,69 @@ class HackerNewsSource(BaseSource):
     def _log_progress(self, channel_key: str, message: str) -> None:
         print(f"[hackernews:{channel_key}] {message}", file=sys.stderr, flush=True)
 
-    def get_help(self) -> HelpDoc | None:
-        return HelpDoc(
-            title="hackernews",
-            summary="Hacker News 公共 API 与内容流。",
-            sections=[
-                HelpSection(
-                    title="Examples",
-                    lines=[
-                        "dc search hackernews <keywords> --limit <n>",
-                        "dc update hackernews --channel <channel> --limit <n>",
-                        "dc query --source hackernews --channel <channel> --limit <n>",
-                    ],
-                )
-            ],
-        )
+MANIFEST = SourceManifest(
+    identity=SourceIdentity(
+        name="hackernews",
+        display_name="Hacker News",
+        summary="Hacker News public APIs",
+    ),
+    mode=None,
+    config_fields=(proxy_url_config(),),
+    source_actions={
+        "source.health": SourceActionSpec(name="source.health", summary="Check HN public API"),
+        "channel.list": SourceActionSpec(name="channel.list", summary="List HN feeds"),
+        "content.search": SourceActionSpec(
+            name="content.search",
+            summary="Search HN stories",
+            options={
+                "query": ActionOptionSpec(name="query"),
+                "limit": ActionOptionSpec(name="limit"),
+            },
+            result_kinds=("content",),
+        ),
+        "content.update": SourceActionSpec(
+            name="content.update",
+            summary="Fetch subscribed HN feeds into local store",
+            options={
+                "channel": ActionOptionSpec(name="channel"),
+                "since": ActionOptionSpec(name="since"),
+                "limit": ActionOptionSpec(name="limit"),
+                "all": ActionOptionSpec(name="all"),
+            },
+            result_kinds=("content",),
+        ),
+    },
+    query=QuerySpec(
+        time_field="published_at",
+        supports_keywords=True,
+        view_id="timeline",
+        view_fields=("published_at", "source", "channel_key", "title", "url"),
+    ),
+    interaction_verbs={},
+    storage=StorageSpec(
+        table_name="hackernews_records",
+        required_record_fields=(
+            "source",
+            "channel_key",
+            "record_type",
+            "external_id",
+            "title",
+            "url",
+            "snippet",
+            "published_at",
+            "fetched_at",
+            "raw_payload",
+            "dedup_key",
+        ),
+    ),
+    docs=DocsSpec(
+        examples=(
+            "dc content search --source hackernews --query openai --limit 20",
+            "dc content update --source hackernews --channel top --limit 20",
+            "dc content query --source hackernews --channel top --limit 20",
+        ),
+    ),
+)
+
+SOURCE_CLASS = HackerNewsSource
+HackerNewsSource.manifest = MANIFEST

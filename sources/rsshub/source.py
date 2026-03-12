@@ -6,18 +6,27 @@ from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
 from core.base import BaseSource
-from core.config import ConfigFieldSpec, SourceConfigError
-from core.help import HelpDoc, HelpSection
+from core.config import SourceConfigError
+from core.manifest import (
+    ActionOptionSpec,
+    ConfigFieldSpec,
+    DocsSpec,
+    QuerySpec,
+    SourceActionSpec,
+    SourceIdentity,
+    SourceManifest,
+    StorageSpec,
+)
 from core.models import (
     ChannelRecord,
     ContentRecord,
     HealthRecord,
     SearchColumnSpec,
-    SearchResult,
     SearchViewSpec,
     SourceStorageSpec,
 )
 from core.protocol import ChannelNotFoundError
+from core.source_defaults import proxy_url_config
 from utils.text import clean_text
 from utils.time import rfc2822_to_iso, utc_now_iso
 
@@ -29,9 +38,6 @@ class RsshubSource(BaseSource):
     name = "rsshub"
     display_name = "RSSHub"
     description = "RSSHub routes as channels"
-    supports_search = True
-    supports_updates = True
-    supports_query = True
     DEFAULT_BASE_URL = "https://rsshub.isrss.com"
     # Alternative public instances (manual switch only, no auto fallback):
     # DEFAULT_BASE_URL = "https://rsshub.ktachibana.party"
@@ -45,11 +51,11 @@ class RsshubSource(BaseSource):
 
     @classmethod
     def config_spec(cls) -> list[ConfigFieldSpec]:
-        return super().config_spec() + [
+        return [
+            proxy_url_config(),
             ConfigFieldSpec(
                 key="base_url",
-                value_type="string",
-                required=False,
+                type="url",
                 secret=False,
                 description=(
                     f"RSSHub instance base URL (default: {cls.DEFAULT_BASE_URL}), "
@@ -58,8 +64,7 @@ class RsshubSource(BaseSource):
             ),
             ConfigFieldSpec(
                 key="routes_json_url",
-                value_type="string",
-                required=False,
+                type="url",
                 secret=False,
                 description=(
                     "Route index URL "
@@ -69,25 +74,8 @@ class RsshubSource(BaseSource):
             ),
         ]
 
-    @classmethod
-    def capability_config_requirements(cls) -> dict[str, tuple[str, ...]]:
-        requirements = super().capability_config_requirements()
-        requirements["health"] = ()
-        requirements["channel"] = ()
-        requirements["search"] = ()
-        requirements["subscribe"] = ()
-        requirements["update"] = ()
-        requirements["query"] = ()
-        return requirements
-
     def get_storage_spec(self) -> SourceStorageSpec:
-        return SourceStorageSpec(
-            source=self.name,
-            table_name="rsshub_records",
-            record_schema="content",
-            supports_keywords=True,
-            time_field="published_at",
-        )
+        return super().get_storage_spec()
 
     def list_channels(self) -> list[ChannelRecord]:
         channels: dict[str, ChannelRecord] = {}
@@ -140,18 +128,11 @@ class RsshubSource(BaseSource):
             details="rsshub routes index reachable",
         )
 
-    def search(
-        self,
-        query: str,
-        channel: str | None = None,
-        limit: int = 10,
-    ) -> list[SearchResult]:
+    def search_channels(self, query: str, limit: int = 20) -> list[ChannelRecord]:
         needle = query.strip().lower()
-        results: list[tuple[int, SearchResult]] = []
+        results: list[tuple[int, ChannelRecord]] = []
         seen: set[tuple[str, str]] = set()
         for namespace, route_key, route_data in self._iter_routes():
-            if channel and namespace != channel:
-                continue
             route_name = str(route_data.get("name") or "")
             example = str(route_data.get("example") or "")
             description = str(route_data.get("description") or "")
@@ -193,17 +174,18 @@ class RsshubSource(BaseSource):
                     results.append(
                         (
                             score,
-                            SearchResult(
-                                title=title,
-                                url=self._build_channel_url(channel_key),
-                                snippet=clean_text(str(item.get("description") or route_name)),
+                            ChannelRecord(
                                 source=self.name,
-                                result_kind="channel",
+                                channel_id=channel_key,
                                 channel_key=channel_key,
+                                display_name=title,
+                                url=self._build_channel_url(channel_key),
                                 metadata={
+                                    "result_kind": "channel",
                                     "namespace": namespace,
                                     "route_key": route_key,
                                     "example": example,
+                                    "description": clean_text(str(item.get("description") or route_name)),
                                 },
                             ),
                         )
@@ -218,17 +200,18 @@ class RsshubSource(BaseSource):
             results.append(
                 (
                     score,
-                    SearchResult(
-                        title=f"{namespace} - {route_name}" if route_name else template_key,
-                        url=f"https://docs.rsshub.app/routes/{namespace}",
-                        snippet=f"template={template_key} example={example or '-'}",
+                    ChannelRecord(
                         source=self.name,
-                        result_kind="channel_template",
+                        channel_id=template_key,
                         channel_key=template_key,
+                        display_name=f"{namespace} - {route_name}" if route_name else template_key,
+                        url=f"https://docs.rsshub.app/routes/{namespace}",
                         metadata={
+                            "result_kind": "channel_template",
                             "namespace": namespace,
                             "route_key": route_key,
                             "example": example,
+                            "description": f"template={template_key} example={example or '-'}",
                         },
                     ),
                 )
@@ -237,38 +220,33 @@ class RsshubSource(BaseSource):
         results.sort(key=lambda item: item[0], reverse=True)
         return [item for _, item in results[:limit]]
 
-    def get_search_view(self, kind: str) -> SearchViewSpec | None:
-        if kind not in {"channel", "channel_template"}:
-            return None
+    def get_channel_search_view(self) -> SearchViewSpec | None:
         return SearchViewSpec(
             columns=[
-                SearchColumnSpec("result_kind", lambda result: result.result_kind, no_wrap=True),
-                SearchColumnSpec("title", lambda result: result.title, max_width=32),
+                SearchColumnSpec("result_kind", lambda channel: channel.metadata.get("result_kind", ""), no_wrap=True),
+                SearchColumnSpec("title", lambda channel: channel.display_name, max_width=32),
                 SearchColumnSpec(
                     "channel_key",
-                    lambda result: result.channel_key or "",
+                    lambda channel: channel.channel_key,
                     no_wrap=True,
                     max_width=52,
                 ),
-                SearchColumnSpec("url", lambda result: result.url, no_wrap=True, max_width=56),
+                SearchColumnSpec("url", lambda channel: channel.url, no_wrap=True, max_width=56),
             ]
         )
 
-    def _fetch_remote_records(
+    def fetch_content(
         self,
         channel_key: str,
-        record_type: str | None = None,
-        limit: int = 10,
-        since: str | None = None,
+        since: datetime | None = None,
+        limit: int | None = 20,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
-        if record_type not in (None, "entry"):
-            raise RuntimeError("rsshub query only supports record_type=entry")
         channel = self.get_channel(channel_key)
         xml_body = self.http.get_text(channel.url)
         records = self._parse_feed(xml_body, channel.channel_key)
         if since is not None:
-            normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
+            normalized_since = since.astimezone().date().isoformat()
             records = [
                 record
                 for record in records
@@ -276,37 +254,7 @@ class RsshubSource(BaseSource):
             ]
         if fetch_all:
             return records
-        return records[:limit]
-
-    def get_default_query_record_type(self) -> str | None:
-        return "entry"
-
-    def get_supported_record_types(self) -> tuple[str, ...]:
-        return ("entry",)
-
-    def get_help(self) -> HelpDoc | None:
-        return HelpDoc(
-            title="rsshub",
-            summary="RSSHub 路由即频道。",
-            sections=[
-                HelpSection(
-                    title="Config",
-                    lines=[
-                        "dc config set rsshub base_url <rsshub-instance-base-url>",
-                        "dc config set rsshub routes_json_url <routes-json-url>",
-                    ],
-                ),
-                HelpSection(
-                    title="Examples",
-                    lines=[
-                        "dc search rsshub youtube --limit 20",
-                        "dc sub add rsshub /youtube/channel/<id>",
-                        "dc update rsshub --channel /youtube/channel/<id>",
-                        "dc query --source rsshub --channel /youtube/channel/<id>",
-                    ],
-                ),
-            ],
-        )
+        return records[: (limit or 20)]
 
     def _parse_feed(self, xml_body: str, channel_key: str) -> list[ContentRecord]:
         try:
@@ -508,3 +456,75 @@ class RsshubSource(BaseSource):
             if needle in lowered:
                 score += 10
         return score
+
+
+MANIFEST = SourceManifest(
+    identity=SourceIdentity(
+        name="rsshub",
+        display_name="RSSHub",
+        summary="RSSHub routes as channels",
+    ),
+    mode=None,
+    config_fields=tuple(RsshubSource.config_spec()),
+    source_actions={
+        "source.health": SourceActionSpec(name="source.health", summary="Check RSSHub route index"),
+        "channel.list": SourceActionSpec(name="channel.list", summary="List RSSHub top feeds"),
+        "channel.search": SourceActionSpec(
+            name="channel.search",
+            summary="Search RSSHub routes and top feeds",
+            options={
+                "query": ActionOptionSpec(name="query"),
+                "limit": ActionOptionSpec(name="limit"),
+            },
+            result_kinds=("channel",),
+        ),
+        "content.update": SourceActionSpec(
+            name="content.update",
+            summary="Fetch subscribed RSSHub feeds into local store",
+            options={
+                "channel": ActionOptionSpec(name="channel"),
+                "since": ActionOptionSpec(name="since"),
+                "limit": ActionOptionSpec(name="limit"),
+                "all": ActionOptionSpec(name="all"),
+            },
+            result_kinds=("content",),
+        ),
+    },
+    query=QuerySpec(
+        time_field="published_at",
+        supports_keywords=True,
+        view_id="timeline",
+        view_fields=("published_at", "source", "channel_key", "title", "url"),
+    ),
+    interaction_verbs={},
+    storage=StorageSpec(
+        table_name="rsshub_records",
+        required_record_fields=(
+            "source",
+            "channel_key",
+            "record_type",
+            "external_id",
+            "title",
+            "url",
+            "snippet",
+            "published_at",
+            "fetched_at",
+            "raw_payload",
+            "dedup_key",
+        ),
+    ),
+    docs=DocsSpec(
+        notes=(
+            "需要可用的 RSSHub 实例地址和路由索引地址。",
+        ),
+        examples=(
+            "dc config source set rsshub base_url https://rsshub.isrss.com",
+            "dc channel search --source rsshub --query youtube --limit 20",
+            "dc content update --source rsshub --channel /youtube/channel/<id>",
+            "dc content query --source rsshub --channel /youtube/channel/<id>",
+        ),
+    ),
+)
+
+SOURCE_CLASS = RsshubSource
+RsshubSource.manifest = MANIFEST

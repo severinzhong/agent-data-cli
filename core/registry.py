@@ -1,167 +1,280 @@
 from __future__ import annotations
 
-from core.config import ConfigFieldSpec, SourceConfigError, build_config_check_items, resolve_source_config
-from core.models import SourceDescriptor, SourceStorageSpec
+from dataclasses import dataclass
+from pathlib import Path
+
+from core.capabilities import CapabilityResolver
+from core.config import (
+    ConfigCheckItem,
+    ResolvedSourceConfig,
+    SourceConfigError,
+    build_config_check_items,
+    resolve_source_config,
+)
+from core.discovery import discover_source_modules
+from core.manifest import ConfigFieldSpec, SourceManifest
+from core.models import CapabilityStatus, SourceDescriptor, SourceStorageSpec
 from store.db import Store
 
 from .base import BaseSource
 
 
+CLI_CONFIG_FIELDS: tuple[ConfigFieldSpec, ...] = (
+    ConfigFieldSpec(
+        key="proxy_url",
+        type="url",
+        secret=False,
+        description="Default proxy URL inherited by sources that opt in",
+    ),
+    ConfigFieldSpec(
+        key="default_user_agent",
+        type="string",
+        secret=False,
+        description="Default user agent inherited by sources that opt in",
+    ),
+    ConfigFieldSpec(
+        key="browser_profile_dir",
+        type="path",
+        secret=False,
+        description="Default browser profile directory",
+    ),
+    ConfigFieldSpec(
+        key="browser_ws_endpoint",
+        type="url",
+        secret=False,
+        description="Browser websocket endpoint",
+    ),
+    ConfigFieldSpec(
+        key="browser_binary",
+        type="path",
+        secret=False,
+        description="Browser executable path",
+    ),
+    ConfigFieldSpec(
+        key="headless",
+        type="bool",
+        secret=False,
+        description="Default browser headless flag",
+    ),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class SourceConfigCheck:
+    source: str
+    effective_mode: str | None
+    action_status: CapabilityStatus | None
+    verb_status: CapabilityStatus | None
+    items: list[ConfigCheckItem]
+
+
+@dataclass(frozen=True, slots=True)
+class RegisteredSource:
+    manifest: SourceManifest
+    source_class: type[BaseSource]
+
+
 class SourceRegistry:
     def __init__(self, store: Store | None) -> None:
         self.store = store
-        self._source_classes: dict[str, type[BaseSource]] = {}
+        self._sources: dict[str, RegisteredSource] = {}
 
-    def register(self, source_class: type[BaseSource]) -> None:
-        if source_class.name in self._source_classes:
-            raise RuntimeError(f"source already registered: {source_class.name}")
-        self._source_classes[source_class.name] = source_class
+    def register(self, source_class: type[BaseSource], manifest: SourceManifest | None = None) -> None:
+        source_manifest = manifest or getattr(source_class, "manifest", None)
+        if source_manifest is None:
+            raise RuntimeError(f"{source_class.__name__} missing manifest")
+        if source_class.name != source_manifest.identity.name:
+            raise RuntimeError(
+                f"source class name mismatch: {source_class.name} != {source_manifest.identity.name}"
+            )
+        if source_manifest.identity.name in self._sources:
+            raise RuntimeError(f"source already registered: {source_manifest.identity.name}")
+        self._sources[source_manifest.identity.name] = RegisteredSource(
+            manifest=source_manifest,
+            source_class=source_class,
+        )
 
-    def build(self, name: str, capability: str | None = None) -> BaseSource:
-        try:
-            source_class = self._source_classes[name]
-        except KeyError as exc:
-            raise RuntimeError(f"unknown source: {name}") from exc
-        config = self._resolve_config(source_class, capability=capability)
-        return source_class(store=self.store, config=config)
+    def build(self, name: str) -> BaseSource:
+        registered = self._require_source(name)
+        config = self._resolve_source_config(registered)
+        source = registered.source_class(store=self.store, config=config, manifest=registered.manifest)
+        source.manifest = registered.manifest
+        return source
 
     def list_names(self) -> list[str]:
-        return sorted(self._source_classes)
+        return sorted(self._sources)
 
-    def list_descriptors(self):
-        descriptors = []
+    def list_descriptors(self) -> list[SourceDescriptor]:
+        descriptors: list[SourceDescriptor] = []
         for name in self.list_names():
-            source_class = self._source_classes[name]
-            entries = self._get_source_config_entries(source_class.name)
-            search_missing = self._get_missing_required_config_keys(source_class, "search", entries)
-            subscribe_missing = self._get_missing_required_config_keys(source_class, "subscribe", entries)
-            update_missing = self._get_missing_required_config_keys(source_class, "update", entries)
-            query_missing = self._get_missing_required_config_keys(source_class, "query", entries)
-            missing_required = _merge_missing_keys(
-                source_class.supports_search,
-                search_missing,
-                source_class.supports_subscriptions,
-                subscribe_missing,
-                source_class.supports_updates,
-                update_missing,
-                source_class.supports_query,
-                query_missing,
+            registered = self._sources[name]
+            config = self._resolve_source_config(registered)
+            resolved_mode = self._resolve_mode(registered, config)
+            resolver = CapabilityResolver(
+                manifest=registered.manifest,
+                resolved_mode=resolved_mode,
+                configured_keys=config.configured_keys(),
             )
             descriptors.append(
                 SourceDescriptor(
-                    name=source_class.name,
-                    display_name=source_class.display_name,
-                    description=source_class.description,
-                    supports_search=source_class.supports_search,
-                    supports_subscriptions=source_class.supports_subscriptions,
-                    supports_updates=source_class.supports_updates,
-                    supports_query=source_class.supports_query,
-                    search_missing_required_configs=tuple(search_missing),
-                    subscribe_missing_required_configs=tuple(subscribe_missing),
-                    update_missing_required_configs=tuple(update_missing),
-                    query_missing_required_configs=tuple(query_missing),
-                    required_config_ok=len(missing_required) == 0,
-                    missing_required_configs=tuple(missing_required),
+                    name=registered.manifest.identity.name,
+                    display_name=registered.manifest.identity.display_name,
+                    summary=registered.manifest.identity.summary,
+                    effective_mode=resolved_mode,
+                    action_statuses={
+                        "channel.search": resolver.action_status("channel.search"),
+                        "content.search": resolver.action_status("content.search"),
+                        "content.update": resolver.action_status("content.update"),
+                        "content.query": resolver.action_status("content.query"),
+                        "content.interact": resolver.action_status("content.interact"),
+                    },
                 )
             )
         return descriptors
 
-    def get_storage_spec(self, name: str) -> SourceStorageSpec:
-        return self.build(name).get_storage_spec()
-
     def list_storage_specs(self) -> list[SourceStorageSpec]:
-        return [self.get_storage_spec(name) for name in self.list_names()]
+        specs: list[SourceStorageSpec] = []
+        for name in self.list_names():
+            manifest = self._sources[name].manifest
+            query = manifest.query
+            specs.append(
+                SourceStorageSpec(
+                    source=manifest.identity.name,
+                    table_name=manifest.storage.table_name,
+                    required_record_fields=manifest.storage.required_record_fields,
+                    time_field=None if query is None else query.time_field,
+                    supports_keywords=True if query is None else query.supports_keywords,
+                    view_id=None if query is None else query.view_id,
+                    view_fields=() if query is None else query.view_fields,
+                )
+            )
+        return specs
 
-    def config_check(self, name: str):
-        try:
-            source_class = self._source_classes[name]
-        except KeyError as exc:
-            raise RuntimeError(f"unknown source: {name}") from exc
-        entries = {}
-        if self.store is not None:
-            entries = self.store.get_source_config_map(name)
-        return build_config_check_items(source_class.config_spec(), entries)
+    def get_storage_spec(self, name: str) -> SourceStorageSpec:
+        for spec in self.list_storage_specs():
+            if spec.source == name:
+                return spec
+        raise RuntimeError(f"unknown source: {name}")
 
-    def get_config_field_spec(self, source_name: str, key: str) -> ConfigFieldSpec:
-        try:
-            source_class = self._source_classes[source_name]
-        except KeyError as exc:
-            raise RuntimeError(f"unknown source: {source_name}") from exc
-        for spec in source_class.config_spec():
+    def get_manifest(self, name: str) -> SourceManifest:
+        return self._require_source(name).manifest
+
+    def get_resolver(self, name: str) -> CapabilityResolver:
+        registered = self._require_source(name)
+        config = self._resolve_source_config(registered)
+        return CapabilityResolver(
+            manifest=registered.manifest,
+            resolved_mode=self._resolve_mode(registered, config),
+            configured_keys=config.configured_keys(),
+        )
+
+    def get_source_config_specs(self, name: str) -> tuple[ConfigFieldSpec, ...]:
+        manifest = self._require_source(name).manifest
+        return self._effective_source_config_specs(manifest)
+
+    def get_source_config_field_spec(self, source_name: str, key: str) -> ConfigFieldSpec:
+        for spec in self.get_source_config_specs(source_name):
             if spec.key == key:
                 return spec
         raise SourceConfigError(f"unknown config key: {source_name}.{key}")
 
+    def get_cli_config_field_spec(self, key: str) -> ConfigFieldSpec:
+        for spec in CLI_CONFIG_FIELDS:
+            if spec.key == key:
+                return spec
+        raise SourceConfigError(f"unknown cli config key: {key}")
+
+    def config_check(
+        self,
+        name: str,
+        *,
+        action_id: str | None = None,
+        verb: str | None = None,
+    ) -> SourceConfigCheck:
+        registered = self._require_source(name)
+        config = self._resolve_source_config(registered)
+        effective_mode = self._resolve_mode(registered, config)
+        resolver = CapabilityResolver(
+            manifest=registered.manifest,
+            resolved_mode=effective_mode,
+            configured_keys=config.configured_keys(),
+        )
+        action_status = None if action_id is None else resolver.action_status(action_id)
+        verb_status = None if verb is None else resolver.verb_status(verb)
+        return SourceConfigCheck(
+            source=name,
+            effective_mode=effective_mode,
+            action_status=action_status,
+            verb_status=verb_status,
+            items=build_config_check_items(self._effective_source_config_specs(registered.manifest), config),
+        )
+
     def prune_undeclared_configs(self) -> None:
         if self.store is None:
             return
-        allowed_keys_by_source = {
-            source_name: {spec.key for spec in source_class.config_spec()}
-            for source_name, source_class in self._source_classes.items()
-        }
-        self.store.prune_source_configs(allowed_keys_by_source)
+        self.store.prune_source_configs(
+            {
+                name: {spec.key for spec in self._effective_source_config_specs(registered.manifest)}
+                for name, registered in self._sources.items()
+            }
+        )
+        self.store.prune_cli_configs({spec.key for spec in CLI_CONFIG_FIELDS})
 
-    def _resolve_config(
-        self,
-        source_class: type[BaseSource],
-        capability: str | None = None,
-    ):
-        entries = self._get_source_config_entries(source_class.name)
-        required_keys: tuple[str, ...] | None = None
-        if capability is not None:
-            required_keys = source_class.required_config_keys_for_capability(capability)
-        return resolve_source_config(
-            source=source_class.name,
-            specs=source_class.config_spec(),
-            entries=entries,
-            required_keys=required_keys,
+    def _effective_source_config_specs(self, manifest: SourceManifest) -> tuple[ConfigFieldSpec, ...]:
+        mode_spec = manifest.mode
+        if mode_spec is None:
+            return manifest.config_fields
+        return (
+            ConfigFieldSpec(
+                key="mode",
+                type="enum",
+                secret=False,
+                description="Source execution mode",
+                choices=mode_spec.values,
+            ),
+            *manifest.config_fields,
         )
 
-    def _get_missing_required_config_keys(
-        self,
-        source_class: type[BaseSource],
-        capability: str,
-        entries: dict | None = None,
-    ) -> list[str]:
-        if entries is None:
-            entries = self._get_source_config_entries(source_class.name)
-        required_keys = source_class.required_config_keys_for_capability(capability)
-        return [key for key in required_keys if key not in entries]
+    def _require_source(self, name: str) -> RegisteredSource:
+        try:
+            return self._sources[name]
+        except KeyError as exc:
+            raise RuntimeError(f"unknown source: {name}") from exc
 
-    def _get_source_config_entries(self, source_name: str):
-        if self.store is None:
-            return {}
-        return self.store.get_source_config_map(source_name)
+    def _resolve_source_config(self, registered: RegisteredSource) -> ResolvedSourceConfig:
+        source_entries = {}
+        cli_entries = {}
+        if self.store is not None:
+            source_entries = self.store.get_source_config_map(registered.manifest.identity.name)
+            cli_entries = self.store.get_cli_config_map()
+        return resolve_source_config(
+            source=registered.manifest.identity.name,
+            specs=self._effective_source_config_specs(registered.manifest),
+            source_entries=source_entries,
+            cli_entries=cli_entries,
+        )
 
-
-def _merge_missing_keys(*parts: bool | list[str]) -> list[str]:
-    merged: list[str] = []
-    include = False
-    for part in parts:
-        if isinstance(part, bool):
-            include = part
-            continue
-        if not include:
-            continue
-        for key in part:
-            if key not in merged:
-                merged.append(key)
-    return merged
+    def _resolve_mode(self, registered: RegisteredSource, config: ResolvedSourceConfig) -> str | None:
+        if registered.manifest.mode is None:
+            return None
+        source = registered.source_class(store=self.store, config=config, manifest=registered.manifest)
+        resolved_mode = source.resolve_mode()
+        if resolved_mode == "auto":
+            raise RuntimeError(
+                f"{registered.manifest.identity.name} resolve_mode() must return a concrete mode, got auto"
+            )
+        if resolved_mode not in registered.manifest.mode.values:
+            raise RuntimeError(
+                f"{registered.manifest.identity.name} resolved invalid mode: {resolved_mode}"
+            )
+        return resolved_mode
 
 
 def build_default_registry(store: Store | None) -> SourceRegistry:
-    from sources.ashare.source import AShareSource
-    from sources.bbc.source import BbcSource
-    from sources.hackernews.source import HackerNewsSource
-    from sources.rsshub.source import RsshubSource
-    from sources.sina_finance_724.source import SinaFinance724Source
-    from sources.wechatarticle.source import WechatArticleSource
-
     registry = SourceRegistry(store=store)
-    registry.register(AShareSource)
-    registry.register(BbcSource)
-    registry.register(HackerNewsSource)
-    registry.register(RsshubSource)
-    registry.register(SinaFinance724Source)
-    registry.register(WechatArticleSource)
+    sources_dir = Path(__file__).resolve().parent.parent / "sources"
+    for discovered in discover_source_modules(sources_dir):
+        source_class = discovered.source_class
+        source_class.manifest = discovered.manifest
+        registry.register(source_class, manifest=discovered.manifest)
     return registry
