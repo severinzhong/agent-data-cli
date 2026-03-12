@@ -35,6 +35,10 @@ def _new_table() -> Table:
     )
 
 
+def _bool_mark(value: bool) -> str:
+    return "✅" if value else "❌"
+
+
 def render_sources_table(items: list[SourceDescriptor]) -> Table:
     table = _new_table()
     table.add_column("source", overflow="ellipsis")
@@ -47,10 +51,10 @@ def render_sources_table(items: list[SourceDescriptor]) -> Table:
         table.add_row(
             item.name,
             item.display_name,
-            str(int(item.supports_search)),
-            str(int(item.supports_subscriptions)),
-            str(int(item.supports_updates)),
-            str(int(item.supports_query)),
+            _bool_mark(item.supports_search),
+            _bool_mark(item.supports_subscriptions),
+            _bool_mark(item.supports_updates),
+            _bool_mark(item.supports_query),
         )
     return table
 
