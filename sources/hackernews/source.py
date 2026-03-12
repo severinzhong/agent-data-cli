@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import time
 from datetime import datetime, timezone
 from urllib.parse import quote_plus
@@ -43,6 +44,7 @@ class HackerNewsSource(BaseSource):
     supports_search = True
     supports_updates = True
     supports_query = True
+    _MAX_HITS_PER_PAGE = 1000
 
     def get_storage_spec(self) -> SourceStorageSpec:
         return SourceStorageSpec(
@@ -123,6 +125,8 @@ class HackerNewsSource(BaseSource):
         normalized_since = None
         if since is not None:
             normalized_since = f"{since[:4]}-{since[4:6]}-{since[6:8]}"
+        if fetch_all and since is not None:
+            return self._fetch_windowed_since(channel.channel_key, channel.url, since)
         if not fetch_all:
             request_url = channel.url
             if normalized_since is not None:
@@ -141,6 +145,7 @@ class HackerNewsSource(BaseSource):
         seen_dedup_keys: set[str] = set()
         is_time_sorted_channel = "search_by_date" in channel.url
         paged_base_url = channel.url
+        paged_base_url = f"{paged_base_url}&hitsPerPage={self._MAX_HITS_PER_PAGE}"
         if normalized_since is not None:
             paged_base_url = (
                 f"{paged_base_url}&numericFilters=created_at_i>={self._since_epoch(since or '')}"
@@ -165,12 +170,18 @@ class HackerNewsSource(BaseSource):
                 seen_dedup_keys.add(record.dedup_key)
                 records.append(record)
 
+            nb_pages = payload.get("nbPages")
+            if isinstance(nb_pages, int):
+                self._log_progress(
+                    channel.channel_key,
+                    f"page {page + 1}/{nb_pages}, collected={len(records)}",
+                )
+
             if normalized_since is not None and is_time_sorted_channel:
                 oldest_hit_date = self._oldest_hit_date(hits)
                 if oldest_hit_date is not None and oldest_hit_date < normalized_since:
                     break
 
-            nb_pages = payload.get("nbPages")
             if isinstance(nb_pages, int) and page + 1 >= nb_pages:
                 break
             page += 1
@@ -200,6 +211,127 @@ class HackerNewsSource(BaseSource):
             )
         return records
 
+    def _fetch_windowed_since(
+        self,
+        channel_key: str,
+        base_url: str,
+        since: str,
+    ) -> list[ContentRecord]:
+        records: list[ContentRecord] = []
+        seen_dedup_keys: set[str] = set()
+        start_epoch = self._since_epoch(since)
+        end_epoch = self._now_epoch()
+        self._collect_window_records(
+            channel_key=channel_key,
+            base_url=base_url,
+            start_epoch=start_epoch,
+            end_epoch=end_epoch,
+            records=records,
+            seen_dedup_keys=seen_dedup_keys,
+        )
+        return records
+
+    def _collect_window_records(
+        self,
+        *,
+        channel_key: str,
+        base_url: str,
+        start_epoch: int,
+        end_epoch: int,
+        records: list[ContentRecord],
+        seen_dedup_keys: set[str],
+    ) -> None:
+        if start_epoch > end_epoch:
+            return
+        window_desc = (
+            f"{self._epoch_date(start_epoch)}..{self._epoch_date(end_epoch)}"
+        )
+        page_0_payload = self.http.get_json(
+            self._window_page_url(base_url, start_epoch, end_epoch, page=0)
+        )
+        page_0_hits = page_0_payload.get("hits", [])
+        nb_pages = page_0_payload.get("nbPages")
+        if not isinstance(nb_pages, int) or nb_pages < 1:
+            nb_pages = 1 if page_0_hits else 0
+        nb_hits = page_0_payload.get("nbHits")
+        if not isinstance(nb_hits, int):
+            nb_hits = len(page_0_hits)
+        capacity = self._MAX_HITS_PER_PAGE * max(nb_pages, 1)
+        is_truncated = nb_hits > capacity
+        self._log_progress(
+            channel_key,
+            (
+                f"window {window_desc} nbHits={nb_hits} "
+                f"nbPages={nb_pages} truncated={int(is_truncated)}"
+            ),
+        )
+        if nb_pages == 0:
+            return
+
+        if is_truncated and end_epoch - start_epoch > 3600:
+            split_epoch = (start_epoch + end_epoch) // 2
+            self._collect_window_records(
+                channel_key=channel_key,
+                base_url=base_url,
+                start_epoch=start_epoch,
+                end_epoch=split_epoch,
+                records=records,
+                seen_dedup_keys=seen_dedup_keys,
+            )
+            self._collect_window_records(
+                channel_key=channel_key,
+                base_url=base_url,
+                start_epoch=split_epoch + 1,
+                end_epoch=end_epoch,
+                records=records,
+                seen_dedup_keys=seen_dedup_keys,
+            )
+            return
+
+        self._append_unique_records(channel_key, page_0_hits, records, seen_dedup_keys)
+        for page in range(1, nb_pages):
+            payload = self.http.get_json(
+                self._window_page_url(base_url, start_epoch, end_epoch, page=page)
+            )
+            self._append_unique_records(
+                channel_key,
+                payload.get("hits", []),
+                records,
+                seen_dedup_keys,
+            )
+            self._log_progress(
+                channel_key,
+                f"window {window_desc} page {page + 1}/{nb_pages} collected={len(records)}",
+            )
+
+    def _append_unique_records(
+        self,
+        channel_key: str,
+        hits: list[dict],
+        records: list[ContentRecord],
+        seen_dedup_keys: set[str],
+    ) -> None:
+        for record in self._records_from_hits(channel_key, hits):
+            if record.dedup_key in seen_dedup_keys:
+                continue
+            seen_dedup_keys.add(record.dedup_key)
+            records.append(record)
+
+    def _window_page_url(
+        self,
+        base_url: str,
+        start_epoch: int,
+        end_epoch: int,
+        *,
+        page: int,
+    ) -> str:
+        return (
+            f"{base_url}"
+            f"&hitsPerPage={self._MAX_HITS_PER_PAGE}"
+            f"&numericFilters=created_at_i>={start_epoch},created_at_i<={end_epoch}"
+            f"&page={page}"
+        )
+
     def _oldest_hit_date(self, hits: list[dict]) -> str | None:
         oldest: str | None = None
         for hit in hits:
@@ -214,6 +346,15 @@ class HackerNewsSource(BaseSource):
     def _since_epoch(self, since: str) -> int:
         parsed = datetime.strptime(since, "%Y%m%d").replace(tzinfo=timezone.utc)
         return int(parsed.timestamp())
+
+    def _now_epoch(self) -> int:
+        return int(datetime.now(timezone.utc).timestamp())
+
+    def _epoch_date(self, epoch: int) -> str:
+        return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d")
+
+    def _log_progress(self, channel_key: str, message: str) -> None:
+        print(f"[hackernews:{channel_key}] {message}", file=sys.stderr, flush=True)
 
     def get_help(self) -> HelpDoc | None:
         return HelpDoc(
