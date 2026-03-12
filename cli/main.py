@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 
 from cli.formatters import (
+    build_content_json_rows,
+    build_search_json_rows,
     print_channels,
     print_config_check,
     print_config_entries,
@@ -16,6 +18,7 @@ from cli.formatters import (
     print_update_summary,
     print_update_summaries,
     print_update_targets,
+    print_jsonl_rows,
 )
 from cli.help import build_command_help_doc, build_global_help_doc, build_source_help_doc, print_help_doc
 from core.config import SourceConfigError
@@ -66,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("query")
     search_parser.add_argument("--channel")
     search_parser.add_argument("--limit", type=int, default=10)
+    search_parser.add_argument("--jsonl", action="store_true")
 
     sub_parser = subparsers.add_parser("sub")
     sub_subparsers = sub_parser.add_subparsers(dest="sub_command", required=True)
@@ -98,6 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
     query_parser.add_argument("--limit", type=int, default=10)
     query_parser.add_argument("--all", dest="fetch_all", action="store_true")
     query_parser.add_argument("--since")
+    query_parser.add_argument("--jsonl", action="store_true")
 
     config_parser = subparsers.add_parser("config")
     config_subparsers = config_parser.add_subparsers(dest="config_command", required=True)
@@ -177,6 +182,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "search":
         source = registry.build(args.source)
         results = source.search(args.query, channel=args.channel, limit=args.limit)
+        if args.jsonl:
+            print_jsonl_rows(build_search_json_rows(results, view_getter=source.get_search_view))
+            return 0
         print_search_results(results, view_getter=source.get_search_view)
         return 0
 
@@ -250,6 +258,9 @@ def main(argv: list[str] | None = None) -> int:
             (record.source, record.record_type): registry.build(record.source).get_query_view(record.record_type)
             for record in records
         }
+        if args.jsonl:
+            print_jsonl_rows(build_content_json_rows(records, view_map=view_map))
+            return 0
         print_content(records, view_map=view_map)
         return 0
 

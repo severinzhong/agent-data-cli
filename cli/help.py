@@ -29,6 +29,7 @@ COMMAND_HELP: dict[str, HelpDoc] = {
                     "--since",
                     "--limit",
                     "--all",
+                    "--jsonl",
                 ],
             ),
             HelpSection(
@@ -53,10 +54,19 @@ COMMAND_HELP: dict[str, HelpDoc] = {
                 ],
             ),
             HelpSection(
+                title="常用参数",
+                lines=[
+                    "--channel",
+                    "--limit",
+                    "--jsonl",
+                ],
+            ),
+            HelpSection(
                 title="Examples",
                 lines=[
                     "dc search ashare 中国移动",
                     "dc search bbc openai --limit 5",
+                    "dc search bbc openai --jsonl",
                 ],
             ),
         ],

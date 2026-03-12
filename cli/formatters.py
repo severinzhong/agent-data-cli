@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from rich.console import Console
 from rich.table import Table
 
@@ -371,6 +373,74 @@ def print_config_entries(items: list[SourceConfigEntry]) -> None:
 
 def print_config_check(items: list[ConfigCheckItem]) -> None:
     _CONSOLE.print(render_config_check_table(items))
+
+
+def build_search_json_rows(
+    items: list[SearchResult],
+    view: SearchViewSpec | None = None,
+    view_getter=None,
+) -> list[dict[str, object]]:
+    if view_getter is not None:
+        rows: list[dict[str, object]] = []
+        for item in items:
+            item_view = view_getter(item.result_kind)
+            if item_view is None:
+                rows.append(
+                    {
+                        "title": item.title,
+                        "url": item.url,
+                        "snippet": item.snippet,
+                        "source": item.source,
+                    }
+                )
+                continue
+            rows.append({column.header: column.getter(item) for column in item_view.columns})
+        return rows
+    if view is not None:
+        return [{column.header: column.getter(item) for column in view.columns} for item in items]
+    return [
+        {
+            "title": item.title,
+            "url": item.url,
+            "snippet": item.snippet,
+            "source": item.source,
+        }
+        for item in items
+    ]
+
+
+def build_content_json_rows(
+    items: list[ContentRecord],
+    view: QueryViewSpec | None = None,
+    view_map: dict[tuple[str, str], QueryViewSpec | None] | None = None,
+) -> list[dict[str, object]]:
+    if view_map is not None:
+        mode = resolve_query_view_mode(items, view_map)
+        if mode == "native" and items:
+            rows: list[dict[str, object]] = []
+            for item in items:
+                item_view = view_map[(item.source, item.record_type)]
+                rows.append({column.header: column.getter(item) for column in item_view.columns})
+            return rows
+    if view is not None:
+        return [{column.header: column.getter(item) for column in view.columns} for item in items]
+    return [
+        {
+            "published_at": item.published_at or "",
+            "source": item.source,
+            "channel_key": item.channel_key,
+            "type": item.record_type,
+            "title": item.title,
+            "snippet": item.snippet,
+            "url": item.url,
+        }
+        for item in items
+    ]
+
+
+def print_jsonl_rows(rows: list[dict[str, object]]) -> None:
+    for row in rows:
+        print(json.dumps(row, ensure_ascii=False))
 
 
 def resolve_query_view_mode(
