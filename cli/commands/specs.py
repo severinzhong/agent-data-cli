@@ -8,7 +8,7 @@ from core.help import HelpDoc, HelpSection
 from core.registry import SourceRegistry
 from store.db import Store
 
-PROGRAM_NAME = "python -m cli"
+PROGRAM_NAME = "adc"
 
 
 ParserConfigurator = Callable[[argparse.ArgumentParser], None]

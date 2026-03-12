@@ -372,10 +372,10 @@ MANIFEST = SourceManifest(
     ),
     docs=DocsSpec(
         examples=(
-            "dc channel list sina_finance_724",
-            "dc sub add --source sina_finance_724 --channel 0全部",
-            "dc content update --source sina_finance_724 --channel 0全部 --since 20260301",
-            "dc content query --source sina_finance_724 --channel 0全部 --since 20260301 --limit 20",
+            "adc channel list sina_finance_724",
+            "adc sub add --source sina_finance_724 --channel 0全部",
+            "adc content update --source sina_finance_724 --channel 0全部 --since 20260301",
+            "adc content query --source sina_finance_724 --channel 0全部 --since 20260301 --limit 20",
         ),
     ),
 )

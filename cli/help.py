@@ -139,7 +139,11 @@ def print_help_doc(doc: HelpDoc) -> None:
 
 
 def _strip_command_prefix(line: str) -> str:
-    for prefix in ("dc ", "uv run python -m cli ", ".venv/bin/python -m cli "):
+    for prefix in (
+        "adc ",
+        "uv run -m adc ",
+        ".venv/bin/python -m adc ",
+    ):
         if line.startswith(prefix):
             return line[len(prefix) :]
     return line

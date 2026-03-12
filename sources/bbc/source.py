@@ -210,9 +210,9 @@ MANIFEST = SourceManifest(
     ),
     docs=DocsSpec(
         examples=(
-            "dc content search --source bbc --query openai --limit 5",
-            "dc content update --source bbc --channel world --limit 10",
-            "dc content query --source bbc --limit 20",
+            "adc content search --source bbc --query openai --limit 5",
+            "adc content update --source bbc --channel world --limit 10",
+            "adc content query --source bbc --limit 20",
         ),
     ),
 )

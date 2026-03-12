@@ -518,10 +518,10 @@ MANIFEST = SourceManifest(
             "需要可用的 RSSHub 实例地址和路由索引地址。",
         ),
         examples=(
-            "dc config source set rsshub base_url https://rsshub.isrss.com",
-            "dc channel search --source rsshub --query youtube --limit 20",
-            "dc content update --source rsshub --channel /youtube/channel/<id>",
-            "dc content query --source rsshub --channel /youtube/channel/<id>",
+            "adc config source set rsshub base_url https://rsshub.isrss.com",
+            "adc channel search --source rsshub --query youtube --limit 20",
+            "adc content update --source rsshub --channel /youtube/channel/<id>",
+            "adc content query --source rsshub --channel /youtube/channel/<id>",
         ),
     ),
 )

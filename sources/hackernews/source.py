@@ -414,9 +414,9 @@ MANIFEST = SourceManifest(
     ),
     docs=DocsSpec(
         examples=(
-            "dc content search --source hackernews --query openai --limit 20",
-            "dc content update --source hackernews --channel top --limit 20",
-            "dc content query --source hackernews --channel top --limit 20",
+            "adc content search --source hackernews --query openai --limit 20",
+            "adc content update --source hackernews --channel top --limit 20",
+            "adc content query --source hackernews --channel top --limit 20",
         ),
     ),
 )

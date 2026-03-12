@@ -8,7 +8,7 @@ from store.db import Store
 from utils.time import parse_since_expr
 
 
-DEFAULT_DB_PATH = "data-cli.db"
+DEFAULT_DB_PATH = "agent-data-cli.db"
 
 
 def main(argv: list[str] | None = None) -> int:

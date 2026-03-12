@@ -54,7 +54,7 @@ def build_parser():
 
 def build_global_help_doc():
     return _build_global_help_doc(
-        title="data-cli",
+        title="agent-data-cli",
         summary="Unified multi-source content CLI.",
         commands=ROOT_COMMANDS,
         sections=GLOBAL_HELP_SECTIONS,

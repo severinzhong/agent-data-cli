@@ -346,8 +346,8 @@ MANIFEST = SourceManifest(
     docs=DocsSpec(
         notes=("这是 discovery-only source，不支持订阅、更新和本地 query。",),
         examples=(
-            "dc content search --source wechatarticle --query OpenAI --limit 20",
-            "dc config source set wechatarticle sogou_cookie '<cookie>'",
+            "adc content search --source wechatarticle --query OpenAI --limit 20",
+            "adc config source set wechatarticle sogou_cookie '<cookie>'",
         ),
     ),
 )

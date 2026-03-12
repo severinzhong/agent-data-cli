@@ -296,9 +296,9 @@ MANIFEST = SourceManifest(
     ),
     docs=DocsSpec(
         examples=(
-            "dc channel search --source ashare --query 贵州茅台 --limit 5",
-            "dc content update --source ashare --channel sh600519 --limit 100",
-            "dc content query --source ashare --channel sh600519 --limit 60",
+            "adc channel search --source ashare --query 贵州茅台 --limit 5",
+            "adc content update --source ashare --channel sh600519 --limit 100",
+            "adc content query --source ashare --channel sh600519 --limit 60",
         ),
     ),
 )
