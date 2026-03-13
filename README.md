@@ -2,93 +2,66 @@
 
 [English](./README.md) | [中文](./README_zh.md)
 
-> Making All Data AI-Native.
+> Making All Data Available to AI.
 > Turn Any Data Source into a CLI.
+> Let agents operate it and aggregate the data for you.
+> This project defines a protocol so data sources can talk to agents through a stable, uniform `command language`.
 
 `agent-data-cli` is a local information center for the agent era.
 
-Most data interfaces were designed for humans to click through websites, feeds, dashboards, and APIs. `agent-data-cli` restructures that world into one explicit, scriptable, local-first interface that agents can actually operate.
+Most existing data interfaces were designed for humans. You click through websites, feeds, admin panels, and scattered APIs to find and piece things together. `agent-data-cli` reorganizes that into one explicit, scriptable, locally queryable `cli` interface so agents can operate data reliably.
 
-It gives agents and humans one consistent interface for:
+It gives agents and humans one unified entrypoint for:
 
 - news
 - social media content
 - financial data
 - RSS feeds
-- other sources that can fit the `source/channel/content` model
+- other content sources that can be mapped into the `source/channel/content` model
 
-The command entrypoint is:
-
-```bash
-uv run -m adc ...
-```
-
-This repository is also a bundled skill pack for:
+This repository is also a pack of loadable skills for:
 
 - Codex
 - Claude Code
 - OpenClaw
 
-Once the bundled skills are loaded, an agent can use one command at a time to discover sources, sync updates, and read local results through the same command surface.
+Once those built-in skills are loaded, an agent can follow the same command surface to discover sources, sync updates, and read results step by step through one command at a time.
 
-## Install with an Agent
+## Why agent-data-cli?
 
-Give your agent this repository:
+- AI-native tools need a stable command surface, not a pile of temporary webpage paths and site scripts.
+- Multi-source data should behave like one system, not a collection of unrelated site adapters.
+- Discovery, sync, local query, and remote side effects need clear boundaries.
+- Agents need an information center they can inspect, update, query, and extend, not a toolbox built from implicit behavior.
 
-```text
-https://github.com/severinzhong/agent-data-cli
-```
+In one line: `agent-data-cli` is about making all data AI-native and turning any data source into a CLI.
 
-Then ask it to:
+## Hand It to an Agent to Install
 
-1. clone the repository
-2. run `uv sync`
-3. load the bundled skills
-4. use `agent-data-cli` to discover sources, update them, and read local results
+Give your agent the repository URL directly. You can say things like:
 
-Example prompts:
+- "Install `agent-data-cli` from `https://github.com/severinzhong/agent-data-cli`, load the built-in skills, and use it directly for me."
+- "Use `agent-data-cli` to help me find a source, subscribe to channels, sync updates, and then read the local results."
+- "Use the source authoring skill in `agent-data-cli` to add a new source for me."
 
-- "Install `agent-data-cli` from `https://github.com/severinzhong/agent-data-cli`, load its bundled skills, and use it for me."
-- "Use `agent-data-cli` to find a source, subscribe to a channel, sync it, and then query the local records."
-- "Use the bundled source-authoring skill from `agent-data-cli` and scaffold a new source."
+## Install These Two skills Separately from skills.sh
 
-## Install Individual skills from skills.sh
-
-Install the two bundled skills individually from `skills.sh`:
+If you only want these two built-in skills, run:
 
 ```bash
 npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data-cli
 npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-data-cli-source
 ```
 
-## Why agent-data-cli?
+## Semantic Alignment
 
-- AI-native tools need stable command surfaces instead of ad hoc browsing paths.
-- Multi-source data should look like one system, not a collection of unrelated site scripts.
-- Discovery, sync, local query, and remote side effects need hard semantic boundaries.
-- Agents need a local information center they can inspect, update, and extend without hidden behavior.
+`agent-data-cli` keeps only two core resource levels: `source` and `channel`.
 
-In one line: `agent-data-cli` is about making all data AI-Native and turning any data source into a CLI.
+- `source`: a concrete data source implementation and a capability boundary, such as a news site, a market data provider, or a social media platform.
+- `channel`: a trackable target inside a source. A channel can be a feed, a stock symbol, or an RSSHub route. You can discover channels, subscribe or unsubscribe them, add them to groups, and run `content update` on subscribed channels. Examples include BBC's `world`, A-share symbol `sh600001`, and RSSHub route `/youtube/channel/<id>`.
+- `content`: a remote search result or a local record written after sync. You use `content search` for remote discovery, `content query` for local reads, and `content update` to sync remote content from subscribed channels into the local store. If a source later declares interaction verbs, you can also use `content interact` to run explicit remote actions on individual content items.
 
-## Status
-
-The current implementation follows the redesign spec:
-
-- [data-cli core redesign](./docs/superpowers/specs/2026-03-12-data-cli-core-redesign-design.md)
-
-The project has already switched to a resource-first command surface:
-
-- the core model keeps only two resource levels: `source` and `channel`
-- `content` is a CLI namespace, not a third core resource
-- top-level command groups are `source`, `channel`, `content`, `sub`, `group`, `config`, and `help`
-- `channel search` and `content search` are separate remote discovery actions
-- `content search` never writes to the local database
-- `content update` is the only remote sync path that writes records locally
-- `content query` always reads from the local database
-- `content interact` is the explicit remote side-effect protocol
-- sources are auto-discovered through `MANIFEST + SOURCE_CLASS`
-
-## Built-in Sources
+## Current Built-in Sources
 
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
@@ -101,12 +74,9 @@ The project has already switched to a resource-first command surface:
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 
-Notes:
+---
 
-- no built-in source currently declares `mode`
-- the core `content.interact` protocol is implemented, but built-in sources do not expose public verbs yet
-- `wechatarticle` is discovery-only
-- `rsshub` needs a working RSSHub instance URL and route index URL
+# The Rest Below Is for Agents, Not Humans
 
 ## Requirements
 
@@ -121,7 +91,7 @@ uv sync
 
 ## Proxy Configuration
 
-`proxy_url` uses one field with three states:
+`proxy_url` keeps a single field with three meanings:
 
 - unset: use the user's current network environment
 - `http://127.0.0.1:7890`: force that proxy
@@ -137,15 +107,15 @@ uv run -m adc config cli unset proxy_url
 
 ## How It Works
 
-For an agent, the happy path is simple:
+For an agent, the shortest path is:
 
-1. discover a source or channel
-2. subscribe if ongoing tracking is needed
-3. sync remote data locally
-4. read from the local database
-5. run explicit remote interactions when needed
+1. Discover a source or channel.
+2. Subscribe first if you want to track it continuously.
+3. Sync remote data into the local store.
+4. Read from the local database.
+5. Run explicit remote interactions only when needed.
 
-Core entrypoint:
+Unified entrypoint:
 
 ```bash
 uv run -m adc ...
@@ -169,13 +139,13 @@ Semantic boundaries:
 
 - `channel search`: remote channel discovery only
 - `content search`: remote content discovery only, no persistence
-- `content update`: sync subscribed targets and persist records
-- `content query`: local-only querying
+- `content update`: sync subscribed targets and write them locally
+- `content query`: local-only query
 - `content interact`: explicit remote side effects only
 
 ## Minimal CLI Surface
 
-Useful examples:
+Keeping a few common examples is enough:
 
 ```bash
 uv run -m adc help
@@ -185,7 +155,7 @@ uv run -m adc content update --group stocks --dry-run
 uv run -m adc content query --source bbc --limit 10
 ```
 
-Interact format:
+Interact command shape:
 
 ```bash
 uv run -m adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
@@ -199,7 +169,7 @@ Default database file:
 agent-data-cli.db
 ```
 
-The shared store persists:
+The shared store layer persists:
 
 - channels
 - subscriptions
@@ -215,16 +185,16 @@ The shared store persists:
 ## Project Layout
 
 ```text
-cli/        argument parsing, dispatch, output
+cli/        argument parsing, command dispatch, output formatting
 core/       protocol, manifest, registry, shared models
-fetchers/   HTTP and browser acquisition
-store/      SQLite persistence, dedup, sync state, config, audit
+fetchers/   HTTP / browser fetching
+store/      SQLite persistence, deduplication, sync state, config, audit
 sources/    isolated source implementations
-skills/     bundled agent skills
-tests/      unit tests and CLI simulation tests
+skills/     agent skills shipped with the repository
+tests/      unit tests and simulated CLI tests
 ```
 
-Included skills:
+Current built-in skills:
 
 - [`using-data-cli`](./skills/using-data-cli/SKILL.md)
 - [`authoring-data-cli-source`](./skills/authoring-data-cli-source/SKILL.md)
@@ -237,19 +207,19 @@ Run the full test suite:
 env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u no_proxy -u NO_PROXY .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-`tests/test_browser_fetcher.py` is a real integration test and expects a local Chrome instance with CDP enabled at:
+`tests/test_browser_fetcher.py` is a real integration test and requires a local Chrome instance with CDP enabled at:
 
 ```text
 http://127.0.0.1:9222
 ```
 
-## Source Development
+## Developing a New Source
 
-The standard path for a new source is:
+The standard path for adding a new source is:
 
-1. create `sources/<name>/source.py`
-2. inherit `BaseSource`
-3. declare `MANIFEST` and `SOURCE_CLASS`
-4. keep all site-specific logic inside `sources/<name>/`
+1. Create `sources/<name>/source.py`.
+2. Inherit `BaseSource`.
+3. Declare `MANIFEST` and `SOURCE_CLASS`.
+4. Keep site-specific logic inside `sources/<name>/`.
 
-If the source is complex, split local logic into additional modules under `sources/<name>/` instead of growing one large `source.py`.
+If the source is more complex, prefer splitting it into local modules under `sources/<name>/` instead of piling everything into one oversized `source.py`.

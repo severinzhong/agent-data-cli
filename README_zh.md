@@ -2,12 +2,14 @@
 
 [English](./README.md) | [中文](./README_zh.md)
 
-> 让所有数据 AI-Native。
+> 让所有数据都能被AI获取。
 > 把任意数据源 CLI 化。
+> AGENT帮你操作，帮你归集数据
+> 本项目是一套协议，让数据源能够方便的和AGENT沟通，使用稳定统一的`命令语言`
 
 `agent-data-cli` 是面向 agent 时代的本地信息中心。
 
-过去的大多数数据接口都是为人类设计的，要靠网页、信息流、后台面板和零散 API 去点、去找、去拼。`agent-data-cli` 要做的是把这件事重新组织成一套显式、可脚本化、可本地查询的统一接口，让 agent 真正能稳定操作数据。
+过去的大多数数据接口都是为人类设计的，要靠网页、信息流、后台面板和零散 API 去点、去找、去拼。`agent-data-cli` 要做的是把这件事重新组织成一套显式、可脚本化、可本地查询的统一`cli`接口，让 agent 真正能稳定操作数据。
 
 它为 agent 和人类提供统一入口，用来处理：
 
@@ -17,12 +19,6 @@
 - RSS 订阅源
 - 其他可以映射到 `source/channel/content` 模型的内容源
 
-命令入口统一为：
-
-```bash
-uv run -m adc ...
-```
-
 这个仓库本身也是一组可装载的 skills，面向：
 
 - Codex
@@ -31,22 +27,18 @@ uv run -m adc ...
 
 当这些内置 skills 被加载后，agent 就可以沿着同一套命令面，用一条命令一步步完成 source 发现、更新同步和后续读取。
 
+## 为什么是 agent-data-cli？
+
+- AI-native工具需要稳定的命令面，而不是一堆临时网页路径和站点脚本。
+- 多源数据应该表现成一个系统，而不是互不相干的站点适配器集合。
+- 发现、同步、本地查询、远端副作用必须有清晰边界。
+- Agent 需要一个可以检查、更新、查询、扩展的信息中心，而不是隐式行为堆出来的工具箱。
+
+一句话：`agent-data-cli` 的目标就是让所有数据 AI-Native，并把任意数据源 CLI 化。
+
 ## 交给 Agent 安装
 
-把这个仓库地址直接交给你的 agent：
-
-```text
-https://github.com/severinzhong/agent-data-cli
-```
-
-然后让它：
-
-1. clone 仓库
-2. 执行 `uv sync`
-3. 装载仓库内置 skills
-4. 用 `agent-data-cli` 做 source 发现、更新同步和本地读取
-
-你可以直接这样说：
+把这个仓库地址直接交给你的 agent，你可以直接这样说：
 
 - “从 `https://github.com/severinzhong/agent-data-cli` 安装 `agent-data-cli`，装载内置 skills，然后直接帮我用。”
 - “用 `agent-data-cli` 帮我找 source、订阅 channel、同步更新，再读取本地结果。”
@@ -61,32 +53,14 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data
 npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-data-cli-source
 ```
 
-## 为什么是 agent-data-cli？
+## 语义对齐
 
-- AI-native 工具需要稳定的命令面，而不是一堆临时网页路径和站点脚本。
-- 多源数据应该表现成一个系统，而不是互不相干的站点适配器集合。
-- 发现、同步、本地查询、远端副作用必须有清晰边界。
-- Agent 需要一个可以检查、更新、查询、扩展的信息中心，而不是隐式行为堆出来的工具箱。
+`agent-data-cli` 的核心模型只保留两层资源：`source` 和 `channel`。
 
-一句话：`agent-data-cli` 的目标就是让所有数据 AI-Native，并把任意数据源 CLI 化。
+- `source`：一种具体的数据源实现，也是能力边界，比如一个新闻站点、一个股市数据源，或一个社交媒体平台。
+- `channel`：source 内部一个可跟踪目标，可以是一条 feed、一个股票代码、一个 RSSHub 路由。你可以发现 channel、订阅或取消订阅、加入 group，并对已订阅的 channel 执行 `content update`。例如 `bbc` 的 `world`、`ashare` 的 `sh600001`、`rsshub` 的 `/youtube/channel/<id>`。
+- `content`：一次远端搜索结果，或一次同步后写入本地的内容记录。你可以用 `content search` 做远端发现，用 `content query` 读取本地库，用 `content update` 把已订阅 channel 的远端内容同步到本地；如果某个 source 以后声明了交互动词，还可以通过 `content interact` 对单条内容执行显式远端操作。
 
-## 当前状态
-
-当前实现以这份重构设计为准：
-
-- [data-cli 核心重构设计](./docs/superpowers/specs/2026-03-12-data-cli-core-redesign-design.md)
-
-项目已经切到资源优先命令面：
-
-- 核心模型只保留两层资源：`source` 和 `channel`
-- `content` 是 CLI 命名空间，不是第三层核心资源
-- 顶层命令固定为 `source`、`channel`、`content`、`sub`、`group`、`config`、`help`
-- `channel search` 和 `content search` 分离
-- `content search` 只做远端发现，不落库
-- `content update` 是唯一会远端同步并写入本地的入口
-- `content query` 永远只查本地数据库
-- `content interact` 是显式远端副作用协议
-- source 通过 `MANIFEST + SOURCE_CLASS` 自动发现
 
 ## 当前内置 Source
 
@@ -101,12 +75,9 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 
-补充说明：
+---
 
-- 当前内置 source 都没有声明 `mode`
-- core 已实现 `content.interact` 协议，但内置 source 还没有公开 verbs
-- `wechatarticle` 是 discovery-only source
-- `rsshub` 依赖可用的 RSSHub 实例地址和路由索引地址
+# 以下内容由AGNET阅读，人类无需阅读
 
 ## 环境要求
 
