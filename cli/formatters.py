@@ -140,17 +140,15 @@ def render_search_results_table(items: list[SearchResult], view: SearchViewSpec 
     return table
 
 
-def build_search_result_sections(
-    items: list[SearchResult],
-    view_getter,
-) -> list[tuple[str, Table]]:
-    grouped: dict[str, list[SearchResult]] = {}
-    for item in items:
-        grouped.setdefault(item.result_kind, []).append(item)
-    return [
-        (kind, render_search_results_table(group_items, view=view_getter(kind)))
-        for kind, group_items in grouped.items()
-    ]
+def render_rows_table(rows: list[dict[str, object]]) -> Table:
+    table = _new_table()
+    headers = _collect_row_headers(rows)
+    column_options = {header: _row_column_options(header) for header in headers}
+    for header in headers:
+        table.add_column(header, **column_options[header])
+    for row in rows:
+        table.add_row(*[_row_value(row.get(header)) for header in headers])
+    return table
 
 
 def render_subscriptions_table(items: list[SubscriptionRecord]) -> Table:
@@ -314,20 +312,8 @@ def print_group_members(items: list[GroupMemberRecord]) -> None:
     _CONSOLE.print(render_group_members_table(items))
 
 
-def print_search_results(items: list[SearchResult], view_getter=None) -> None:
-    if view_getter is not None:
-        sections = build_search_result_sections(items, view_getter)
-        if len(sections) == 1:
-            _, table = sections[0]
-            _CONSOLE.print(table)
-            return
-        for index, (kind, table) in enumerate(sections):
-            _CONSOLE.print(f"[bold]{kind}[/bold]")
-            _CONSOLE.print(table)
-            if index != len(sections) - 1:
-                _CONSOLE.print()
-        return
-    _CONSOLE.print(render_search_results_table(items))
+def print_search_results(items: list[SearchResult], view: SearchViewSpec | None = None) -> None:
+    _CONSOLE.print(render_search_results_table(items, view=view))
 
 
 def print_subscriptions(items: list[SubscriptionRecord]) -> None:
@@ -336,6 +322,10 @@ def print_subscriptions(items: list[SubscriptionRecord]) -> None:
 
 def print_content(items: list[ContentRecord], view: QueryViewSpec | None = None, native_view_ok: bool = False) -> None:
     _CONSOLE.print(render_content_table(items, view=view, native_view_ok=native_view_ok))
+
+
+def print_rows(rows: list[dict[str, object]]) -> None:
+    _CONSOLE.print(render_rows_table(rows))
 
 
 def print_health(item: HealthRecord) -> None:
@@ -385,51 +375,44 @@ def build_channel_json_rows(items: list[ChannelRecord], view: SearchViewSpec | N
     ]
 
 
-def build_search_json_rows(items: list[SearchResult], view_getter=None) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for item in items:
-        view = None if view_getter is None else view_getter(item.result_kind)
-        if view is None:
-            row = {
-                "title": item.title,
-                "url": item.url,
-                "snippet": item.snippet,
-                "source": item.source,
-            }
-            if item.content_ref is not None:
-                row["content_ref"] = item.content_ref
-            rows.append(row)
-            continue
+def build_search_json_row(item: SearchResult, view: SearchViewSpec | None = None) -> dict[str, object]:
+    if view is not None:
         row = {column.header: column.getter(item) for column in view.columns}
-        if item.content_ref is not None:
-            row["content_ref"] = item.content_ref
-        rows.append(row)
-    return rows
+    else:
+        row = {
+            "title": item.title,
+            "url": item.url,
+            "snippet": item.snippet,
+            "source": item.source,
+        }
+    if item.content_ref is not None:
+        row["content_ref"] = item.content_ref
+    return row
 
 
-def build_content_json_rows(
-    items: list[ContentRecord],
-    view: QueryViewSpec | None = None,
-    native_view_ok: bool = False,
-) -> list[dict[str, object]]:
-    if view is not None and native_view_ok:
-        rows = [{column.header: column.getter(item) for column in view.columns} for item in items]
-        for row, item in zip(rows, items, strict=False):
-            if item.content_ref is not None:
-                row["content_ref"] = item.content_ref
-        return rows
-    return [
-        {
+def build_search_json_rows(items: list[SearchResult], view: SearchViewSpec | None = None) -> list[dict[str, object]]:
+    return [build_search_json_row(item, view=view) for item in items]
+
+
+def build_content_json_row(item: ContentRecord, view: QueryViewSpec | None = None) -> dict[str, object]:
+    if view is not None:
+        row = {column.header: column.getter(item) for column in view.columns}
+    else:
+        row = {
             "published_at": item.published_at or "",
             "source": item.source,
             "channel_key": item.channel_key,
             "title": item.title,
             "snippet": item.snippet,
             "url": item.url,
-            **({"content_ref": item.content_ref} if item.content_ref is not None else {}),
         }
-        for item in items
-    ]
+    if item.content_ref is not None:
+        row["content_ref"] = item.content_ref
+    return row
+
+
+def build_content_json_rows(items: list[ContentRecord], view: QueryViewSpec | None = None) -> list[dict[str, object]]:
+    return [build_content_json_row(item, view=view) for item in items]
 
 
 def print_jsonl_rows(rows: list[dict[str, object]]) -> None:
@@ -440,6 +423,14 @@ def print_jsonl_rows(rows: list[dict[str, object]]) -> None:
 def print_csv_rows(rows: list[dict[str, object]]) -> None:
     if not rows:
         return
+    fieldnames = _collect_row_headers(rows)
+    writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({field: "" if row.get(field) is None else row.get(field) for field in fieldnames})
+
+
+def _collect_row_headers(rows: list[dict[str, object]]) -> list[str]:
     fieldnames: list[str] = []
     seen: set[str] = set()
     for row in rows:
@@ -448,7 +439,22 @@ def print_csv_rows(rows: list[dict[str, object]]) -> None:
                 continue
             fieldnames.append(key)
             seen.add(key)
-    writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames, lineterminator="\n")
-    writer.writeheader()
-    for row in rows:
-        writer.writerow({field: "" if row.get(field) is None else row.get(field) for field in fieldnames})
+    return fieldnames
+
+
+def _row_column_options(header: str) -> dict[str, object]:
+    kwargs: dict[str, object] = {}
+    if header in {"url"}:
+        kwargs["no_wrap"] = True
+        kwargs["max_width"] = 56
+    elif header in {"content_ref"}:
+        kwargs["max_width"] = 48
+    elif header.endswith("_at") or header in {"date"}:
+        kwargs["no_wrap"] = True
+    return kwargs
+
+
+def _row_value(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value)

@@ -104,6 +104,13 @@ It must define:
 - CLI-visible semantics
 - testing scope
 
+For native search/query views:
+
+- treat column names as a soft compatibility surface because multi-source and multi-channel aggregation merges by column header
+- prefer explicit names such as `published_at`, `publisher`, `author`, `price`, `volume`
+- avoid vague names such as `time`, `source`, `value` unless that meaning is genuinely exact
+- column order is mainly for readability; header naming is what determines merge behavior
+
 ### 3. Plan
 
 Turn the approved spec into an implementation plan.

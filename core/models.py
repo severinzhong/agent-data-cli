@@ -87,8 +87,6 @@ class SourceStorageSpec:
     required_record_fields: tuple[str, ...]
     time_field: str | None
     supports_keywords: bool
-    view_id: str | None = None
-    view_fields: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -146,7 +144,6 @@ class SearchResult:
     url: str
     snippet: str
     source: str
-    result_kind: str
     channel_key: str | None = None
     metadata: dict[str, str] | None = None
     content_ref: str | None = None

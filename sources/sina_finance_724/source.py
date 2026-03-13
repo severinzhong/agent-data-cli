@@ -123,7 +123,8 @@ class SinaFinance724Source(BaseSource):
             details="sina finance 7x24 api reachable",
         )
 
-    def get_query_view(self) -> QueryViewSpec | None:
+    def get_query_view(self, channel_key: str | None = None) -> QueryViewSpec | None:
+        _ = channel_key
         return QueryViewSpec(
             columns=[
                 QueryColumnSpec("channel", lambda record: record.channel_key, no_wrap=True),
@@ -344,15 +345,9 @@ MANIFEST = SourceManifest(
                 "limit": ActionOptionSpec(name="limit"),
                 "all": ActionOptionSpec(name="all"),
             },
-            result_kinds=("content",),
         ),
     },
-    query=QuerySpec(
-        time_field="published_at",
-        supports_keywords=True,
-        view_id="sina_finance_724.news",
-        view_fields=("channel", "time", "title", "url"),
-    ),
+    query=QuerySpec(time_field="published_at", supports_keywords=True),
     interaction_verbs={},
     storage=StorageSpec(
         table_name="sina_finance_724_records",

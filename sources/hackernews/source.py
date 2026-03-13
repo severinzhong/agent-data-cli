@@ -111,7 +111,6 @@ class HackerNewsSource(BaseSource):
                     url=item_url,
                     snippet=snippet,
                     source=self.name,
-                    result_kind="content",
                 )
             )
         return results
@@ -375,7 +374,6 @@ MANIFEST = SourceManifest(
                 "query": ActionOptionSpec(name="query"),
                 "limit": ActionOptionSpec(name="limit"),
             },
-            result_kinds=("content",),
         ),
         "content.update": SourceActionSpec(
             name="content.update",
@@ -386,15 +384,9 @@ MANIFEST = SourceManifest(
                 "limit": ActionOptionSpec(name="limit"),
                 "all": ActionOptionSpec(name="all"),
             },
-            result_kinds=("content",),
         ),
     },
-    query=QuerySpec(
-        time_field="published_at",
-        supports_keywords=True,
-        view_id="timeline",
-        view_fields=("published_at", "source", "channel_key", "title", "url"),
-    ),
+    query=QuerySpec(time_field="published_at", supports_keywords=True),
     interaction_verbs={},
     storage=StorageSpec(
         table_name="hackernews_records",

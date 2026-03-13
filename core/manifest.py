@@ -168,7 +168,6 @@ class SourceActionSpec:
     supported_modes: tuple[str, ...] = ()
     options: dict[str, ActionOptionSpec] = field(default_factory=dict)
     config_requirements: tuple[ConfigRequirement, ...] = ()
-    result_kinds: tuple[str, ...] = ()
     examples: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -183,8 +182,6 @@ class SourceActionSpec:
 class QuerySpec:
     time_field: str | None = "published_at"
     supports_keywords: bool = True
-    view_id: str | None = None
-    view_fields: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.time_field is not None:

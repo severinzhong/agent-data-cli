@@ -145,8 +145,6 @@ class SourceRegistry:
                     required_record_fields=manifest.storage.required_record_fields,
                     time_field=None if query is None else query.time_field,
                     supports_keywords=True if query is None else query.supports_keywords,
-                    view_id=None if query is None else query.view_id,
-                    view_fields=() if query is None else query.view_fields,
                 )
             )
         return specs

@@ -181,7 +181,7 @@ class RsshubSource(BaseSource):
                                 display_name=title,
                                 url=self._build_channel_url(channel_key),
                                 metadata={
-                                    "result_kind": "channel",
+                                    "channel_kind": "channel",
                                     "namespace": namespace,
                                     "route_key": route_key,
                                     "example": example,
@@ -207,7 +207,7 @@ class RsshubSource(BaseSource):
                         display_name=f"{namespace} - {route_name}" if route_name else template_key,
                         url=f"https://docs.rsshub.app/routes/{namespace}",
                         metadata={
-                            "result_kind": "channel_template",
+                            "channel_kind": "channel_template",
                             "namespace": namespace,
                             "route_key": route_key,
                             "example": example,
@@ -223,7 +223,7 @@ class RsshubSource(BaseSource):
     def get_channel_search_view(self) -> SearchViewSpec | None:
         return SearchViewSpec(
             columns=[
-                SearchColumnSpec("result_kind", lambda channel: channel.metadata.get("result_kind", ""), no_wrap=True),
+                SearchColumnSpec("channel_kind", lambda channel: channel.metadata.get("channel_kind", ""), no_wrap=True),
                 SearchColumnSpec("title", lambda channel: channel.display_name, max_width=32),
                 SearchColumnSpec(
                     "channel_key",
@@ -476,7 +476,6 @@ MANIFEST = SourceManifest(
                 "query": ActionOptionSpec(name="query"),
                 "limit": ActionOptionSpec(name="limit"),
             },
-            result_kinds=("channel",),
         ),
         "content.update": SourceActionSpec(
             name="content.update",
@@ -487,15 +486,9 @@ MANIFEST = SourceManifest(
                 "limit": ActionOptionSpec(name="limit"),
                 "all": ActionOptionSpec(name="all"),
             },
-            result_kinds=("content",),
         ),
     },
-    query=QuerySpec(
-        time_field="published_at",
-        supports_keywords=True,
-        view_id="timeline",
-        view_fields=("published_at", "source", "channel_key", "title", "url"),
-    ),
+    query=QuerySpec(time_field="published_at", supports_keywords=True),
     interaction_verbs={},
     storage=StorageSpec(
         table_name="rsshub_records",

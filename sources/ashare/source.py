@@ -119,7 +119,8 @@ class AShareSource(BaseSource):
             ]
         )
 
-    def get_query_view(self) -> QueryViewSpec | None:
+    def get_query_view(self, channel_key: str | None = None) -> QueryViewSpec | None:
+        _ = channel_key
         return QueryViewSpec(
             columns=[
                 QueryColumnSpec("channel", lambda record: record.channel_key),
@@ -257,7 +258,6 @@ MANIFEST = SourceManifest(
                 "query": ActionOptionSpec(name="query"),
                 "limit": ActionOptionSpec(name="limit"),
             },
-            result_kinds=("channel",),
         ),
         "content.update": SourceActionSpec(
             name="content.update",
@@ -268,15 +268,9 @@ MANIFEST = SourceManifest(
                 "limit": ActionOptionSpec(name="limit"),
                 "all": ActionOptionSpec(name="all"),
             },
-            result_kinds=("content",),
         ),
     },
-    query=QuerySpec(
-        time_field="published_at",
-        supports_keywords=True,
-        view_id="ashare.day",
-        view_fields=("channel", "date", "open", "close", "high", "low", "volume", "amount"),
-    ),
+    query=QuerySpec(time_field="published_at", supports_keywords=True),
     interaction_verbs={},
     storage=StorageSpec(
         table_name="ashare_records",

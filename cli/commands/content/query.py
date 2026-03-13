@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from cli.commands.common import parse_since, resolve_limit
-from cli.commands.content.common import resolve_query_sources, resolve_query_view
+from cli.commands.content.common import build_query_rows, resolve_query_sources
 from cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
-from cli.formatters import build_content_json_rows, print_content, print_csv_rows, print_jsonl_rows
+from cli.formatters import print_csv_rows, print_jsonl_rows, print_rows
 from core.help import HelpSection
 from utils.time import since_datetime_to_iso
 
@@ -40,15 +40,14 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
         limit=-1 if limit is None else limit,
         fetch_all=args.fetch_all,
     )
-    view, native_view_ok = resolve_query_view(rows, ctx.registry)
-    rendered_rows = build_content_json_rows(rows, view=view, native_view_ok=native_view_ok)
+    rendered_rows = build_query_rows(rows, ctx.registry)
     if args.jsonl:
         print_jsonl_rows(rendered_rows)
         return 0
     if getattr(args, "csv", False):
         print_csv_rows(rendered_rows)
         return 0
-    print_content(rows, view=view, native_view_ok=native_view_ok)
+    print_rows(rendered_rows)
     return 0
 
 

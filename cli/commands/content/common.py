@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from cli.formatters import build_content_json_row
 from cli.commands.common import require_action, require_option
 from cli.commands.specs import PROGRAM_NAME
 from core.models import parse_content_ref
@@ -109,23 +110,18 @@ def resolve_query_sources(registry, store: Store, *, source: str | None, group: 
     return registry.list_names()
 
 
-def resolve_query_view(rows, registry) -> tuple[object | None, bool]:
-    if not rows:
-        return None, False
-    sources = {row.source for row in rows}
-    if len(sources) != 1:
-        specs = [registry.get_storage_spec(source_name) for source_name in sorted(sources)]
-        first = specs[0]
-        if not first.view_id:
-            return None, False
-        if any(spec.view_id != first.view_id or spec.view_fields != first.view_fields for spec in specs[1:]):
-            return None, False
-        return registry.build(specs[0].source).get_query_view(), True
-    source_name = next(iter(sources))
-    spec = registry.get_storage_spec(source_name)
-    if spec.view_id is None:
-        return None, False
-    return registry.build(source_name).get_query_view(), True
+def build_query_rows(rows, registry) -> list[dict[str, object]]:
+    source_cache: dict[str, object] = {}
+    view_cache: dict[tuple[str, str | None], object | None] = {}
+    rendered_rows: list[dict[str, object]] = []
+    for row in rows:
+        if row.source not in source_cache:
+            source_cache[row.source] = registry.build(row.source)
+        cache_key = (row.source, row.channel_key)
+        if cache_key not in view_cache:
+            view_cache[cache_key] = source_cache[row.source].get_query_view(row.channel_key)
+        rendered_rows.append(build_content_json_row(row, view=view_cache[cache_key]))
+    return rendered_rows
 
 
 def group_targets_by_source(targets: list[tuple[str, str]]) -> dict[str, tuple[str, ...]]:

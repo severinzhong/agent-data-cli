@@ -158,9 +158,8 @@ class WechatArticleSource(BaseSource):
                 break
         return results[:limit]
 
-    def get_content_search_view(self, kind: str) -> SearchViewSpec | None:
-        if kind != "content":
-            return None
+    def get_content_search_view(self, channel_key: str | None) -> SearchViewSpec | None:
+        _ = channel_key
         return SearchViewSpec(
             columns=[
                 SearchColumnSpec("title", lambda item: item.title, max_width=34),
@@ -233,7 +232,6 @@ class WechatArticleSource(BaseSource):
             url=urljoin(self._SOGOU_BASE, href),
             snippet=snippet,
             source=self.name,
-            result_kind="content",
             metadata=metadata or None,
         )
 
@@ -326,7 +324,6 @@ MANIFEST = SourceManifest(
                 "query": ActionOptionSpec(name="query"),
                 "limit": ActionOptionSpec(name="limit"),
             },
-            result_kinds=("content",),
         ),
     },
     query=None,

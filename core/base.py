@@ -63,8 +63,6 @@ class BaseSource:
             required_record_fields=manifest.storage.required_record_fields,
             time_field=None if query is None else query.time_field,
             supports_keywords=True if query is None else query.supports_keywords,
-            view_id=None if query is None else query.view_id,
-            view_fields=() if query is None else query.view_fields,
         )
 
     def resolve_mode(self) -> str:
@@ -105,10 +103,12 @@ class BaseSource:
     def get_channel_search_view(self) -> SearchViewSpec | None:
         return None
 
-    def get_content_search_view(self, kind: str) -> SearchViewSpec | None:
+    def get_content_search_view(self, channel_key: str | None) -> SearchViewSpec | None:
+        _ = channel_key
         return None
 
-    def get_query_view(self) -> QueryViewSpec | None:
+    def get_query_view(self, channel_key: str | None = None) -> QueryViewSpec | None:
+        _ = channel_key
         return None
 
     def subscribe(

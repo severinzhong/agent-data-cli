@@ -30,14 +30,15 @@ def run_content_search(args, extras: list[str], ctx: CommandContext) -> int:
         limit=limit,
     )
     validate_search_results(args.source, results, ctx.registry)
-    rows = build_search_json_rows(results, view_getter=source.get_content_search_view)
+    view = source.get_content_search_view(args.channel)
+    rows = build_search_json_rows(results, view=view)
     if args.jsonl:
         print_jsonl_rows(rows)
         return 0
     if getattr(args, "csv", False):
         print_csv_rows(rows)
         return 0
-    print_search_results(results, view_getter=source.get_content_search_view)
+    print_search_results(results, view=view)
     return 0
 
 

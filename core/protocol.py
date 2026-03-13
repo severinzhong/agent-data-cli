@@ -90,7 +90,7 @@ class SourceProtocol(Protocol):
     def get_channel_search_view(self) -> SearchViewSpec | None:
         raise NotImplementedError
 
-    def get_content_search_view(self, kind: str) -> SearchViewSpec | None:
+    def get_content_search_view(self, channel_key: str | None) -> SearchViewSpec | None:
         raise NotImplementedError
 
     def fetch_content(
@@ -102,7 +102,7 @@ class SourceProtocol(Protocol):
     ) -> list[ContentRecord]:
         raise NotImplementedError
 
-    def get_query_view(self) -> QueryViewSpec | None:
+    def get_query_view(self, channel_key: str | None = None) -> QueryViewSpec | None:
         raise NotImplementedError
 
     def update(
