@@ -85,9 +85,11 @@ https://github.com/severinzhong/agent-data-cli
 | --- | --- | --- | --- | --- | --- |
 | `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
+| `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
+| `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 
 补充说明：

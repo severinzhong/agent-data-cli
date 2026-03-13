@@ -68,6 +68,60 @@ Read `references/task-patterns.md` when the user request is ambiguous and needs 
 
 Read `references/result-reporting.md` before reporting back after a multi-step run.
 
+## Usage Tips
+
+### Configure Proxy
+
+When a source needs a proxy, configure it explicitly instead of depending on shell environment:
+
+```bash
+uv run -m adc config source set <source> proxy_url http://127.0.0.1:7890
+```
+
+If multiple sources should share one proxy, set the CLI-level default:
+
+```bash
+uv run -m adc config cli set proxy_url http://127.0.0.1:7890
+```
+
+Inspect current source config:
+
+```bash
+uv run -m adc config source list <source>
+```
+
+### Use `--jsonl` with `jq` or `awk`
+
+For machine filtering, prefer `--jsonl` and pipe to shell tools:
+
+```bash
+uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq '.title'
+uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq 'select(.channel_key=="BTC")'
+uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | awk -F'"' '/"channel_key": "BTC"/ {print $0}'
+```
+
+The same pattern works for remote discovery:
+
+```bash
+uv run -m adc channel search --source cryptocompare --query BTC --limit 5 --jsonl | jq '.channel_key'
+```
+
+### Save Output with `>` and `>>`
+
+Use `>` to overwrite a file and `>>` to append:
+
+```bash
+uv run -m adc content query --source cryptocompare --channel BTC --limit 100 --jsonl > btc.jsonl
+uv run -m adc content query --source cryptocompare --channel ETH --limit 100 --jsonl >> btc.jsonl
+uv run -m adc channel search --source cryptocompare --query BTC --limit 20 --jsonl > channels.jsonl
+```
+
+This is useful when you want to:
+
+- keep a snapshot for later analysis
+- feed results into `jq`, `awk`, or other CLI tools
+- accumulate multiple command outputs into one JSONL file
+
 ## Execution Flow
 
 1. Classify the request as discovery, subscription, sync, local query, or remote interact.

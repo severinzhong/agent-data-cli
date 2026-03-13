@@ -85,9 +85,11 @@ The project has already switched to a resource-first command surface:
 | --- | --- | --- | --- | --- | --- |
 | `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
+| `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
+| `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 
 Notes:
