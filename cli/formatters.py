@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import json
+import sys
 
 from rich.console import Console
 from rich.table import Table
@@ -433,3 +435,20 @@ def build_content_json_rows(
 def print_jsonl_rows(rows: list[dict[str, object]]) -> None:
     for row in rows:
         print(json.dumps(row, ensure_ascii=False))
+
+
+def print_csv_rows(rows: list[dict[str, object]]) -> None:
+    if not rows:
+        return
+    fieldnames: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for key in row:
+            if key in seen:
+                continue
+            fieldnames.append(key)
+            seen.add(key)
+    writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({field: "" if row.get(field) is None else row.get(field) for field in fieldnames})

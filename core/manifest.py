@@ -42,6 +42,7 @@ RESERVED_PARAM_NAMES = {
     "limit",
     "all",
     "jsonl",
+    "csv",
     "dry_run",
     "verb",
     "ref",

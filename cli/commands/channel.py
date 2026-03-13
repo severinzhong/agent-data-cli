@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cli.formatters import build_channel_json_rows, print_channels, print_jsonl_rows
+from cli.formatters import build_channel_json_rows, print_channels, print_csv_rows, print_jsonl_rows
 from cli.commands.common import require_action, require_option, resolve_limit
 from cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
 from core.help import HelpSection
@@ -24,8 +24,12 @@ def _run_channel_search(args, extras: list[str], ctx: CommandContext) -> int:
     limit = resolve_limit(args.limit)
     channels = source.search_channels(query=args.query, limit=limit)
     view = source.get_channel_search_view()
+    rows = build_channel_json_rows(channels, view=view)
     if args.jsonl:
-        print_jsonl_rows(build_channel_json_rows(channels, view=view))
+        print_jsonl_rows(rows)
+        return 0
+    if args.csv:
+        print_csv_rows(rows)
         return 0
     print_channels(channels, view=view)
     return 0
@@ -65,7 +69,8 @@ CHANNEL_COMMAND = CommandNodeSpec(
                 CommandArgSpec(names=("--source",), value_name="source", required=True),
                 CommandArgSpec(names=("--query",), value_name="query", required=True),
                 CommandArgSpec(names=("--limit",), value_name="n", type=int),
-                CommandArgSpec(names=("--jsonl",), action="store_true"),
+                CommandArgSpec(names=("--jsonl",), action="store_true", exclusive_group="machine_output"),
+                CommandArgSpec(names=("--csv",), action="store_true", exclusive_group="machine_output"),
             ),
             run=_run_channel_search,
         ),

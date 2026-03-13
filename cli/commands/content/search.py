@@ -3,7 +3,7 @@ from __future__ import annotations
 from cli.commands.common import parse_since, require_action, require_option, resolve_limit
 from cli.commands.content.common import validate_search_results
 from cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
-from cli.formatters import build_search_json_rows, print_jsonl_rows, print_search_results
+from cli.formatters import build_search_json_rows, print_csv_rows, print_jsonl_rows, print_search_results
 from core.help import HelpSection
 
 
@@ -30,8 +30,12 @@ def run_content_search(args, extras: list[str], ctx: CommandContext) -> int:
         limit=limit,
     )
     validate_search_results(args.source, results, ctx.registry)
+    rows = build_search_json_rows(results, view_getter=source.get_content_search_view)
     if args.jsonl:
-        print_jsonl_rows(build_search_json_rows(results, view_getter=source.get_content_search_view))
+        print_jsonl_rows(rows)
+        return 0
+    if getattr(args, "csv", False):
+        print_csv_rows(rows)
         return 0
     print_search_results(results, view_getter=source.get_content_search_view)
     return 0
@@ -63,7 +67,8 @@ CONTENT_SEARCH_COMMAND = CommandNodeSpec(
         CommandArgSpec(names=("--query",), value_name="query"),
         CommandArgSpec(names=("--since",), value_name="since"),
         CommandArgSpec(names=("--limit",), value_name="n", type=int),
-        CommandArgSpec(names=("--jsonl",), action="store_true"),
+        CommandArgSpec(names=("--jsonl",), action="store_true", exclusive_group="machine_output"),
+        CommandArgSpec(names=("--csv",), action="store_true", exclusive_group="machine_output"),
     ),
     run=run_content_search,
 )

@@ -30,8 +30,9 @@ class CommandArgSpec:
     dest: str | None = None
     nargs: str | int | None = None
     type: object | None = None
+    exclusive_group: str | None = None
 
-    def add_to_parser(self, parser: argparse.ArgumentParser) -> None:
+    def add_to_parser(self, parser: argparse.ArgumentParser | argparse._MutuallyExclusiveGroup) -> None:
         kwargs: dict[str, object] = {}
         if self.required and not self.is_positional:
             kwargs["required"] = True
@@ -46,6 +47,9 @@ class CommandArgSpec:
         parser.add_argument(*self.names, **kwargs)
 
     def help_line(self) -> str:
+        return self.usage_fragment()
+
+    def usage_fragment(self, *, bracket_optional: bool = True) -> str:
         if self.is_positional:
             if self.value_name is None:
                 return self.names[0]
@@ -57,7 +61,7 @@ class CommandArgSpec:
             rendered = f"{flag} <{self.value_name}>"
         else:
             rendered = flag
-        if self.required:
+        if self.required or not bracket_optional:
             return rendered
         return f"[{rendered}]"
 
@@ -95,7 +99,7 @@ class CommandNodeSpec:
             return f"{base} ..."
         if not self.arg_specs:
             return base
-        return " ".join([base, *[arg.help_line() for arg in self.arg_specs]])
+        return " ".join([base, *_render_usage_parts(self.arg_specs)])
 
 
 def build_root_parser(commands: tuple[CommandNodeSpec, ...]) -> argparse.ArgumentParser:
@@ -178,8 +182,16 @@ def _attach_node(
     path: tuple[str, ...],
 ) -> None:
     parser = subparsers.add_parser(node.name)
+    exclusive_groups: dict[str, argparse._MutuallyExclusiveGroup] = {}
     for arg_spec in node.arg_specs:
-        arg_spec.add_to_parser(parser)
+        target: argparse.ArgumentParser | argparse._MutuallyExclusiveGroup = parser
+        if arg_spec.exclusive_group is not None:
+            group = exclusive_groups.get(arg_spec.exclusive_group)
+            if group is None:
+                group = parser.add_mutually_exclusive_group()
+                exclusive_groups[arg_spec.exclusive_group] = group
+            target = group
+        arg_spec.add_to_parser(target)
     next_path = path + (node.name,)
     if node.children:
         child_subparsers = parser.add_subparsers(dest=node.child_dest or _dest_name(next_path), required=True)
@@ -209,3 +221,21 @@ def _collect_leaf_usage_lines(
             continue
         lines.append(command.usage_line(parent_path))
     return lines
+
+
+def _render_usage_parts(arg_specs: tuple[CommandArgSpec, ...]) -> list[str]:
+    parts: list[str] = []
+    rendered_groups: set[str] = set()
+    for arg_spec in arg_specs:
+        if arg_spec.exclusive_group is None:
+            parts.append(arg_spec.help_line())
+            continue
+        if arg_spec.exclusive_group in rendered_groups:
+            continue
+        group_specs = tuple(spec for spec in arg_specs if spec.exclusive_group == arg_spec.exclusive_group)
+        group_usage = " | ".join(spec.usage_fragment(bracket_optional=False) for spec in group_specs)
+        if all(not spec.required for spec in group_specs):
+            group_usage = f"[{group_usage}]"
+        parts.append(group_usage)
+        rendered_groups.add(arg_spec.exclusive_group)
+    return parts
