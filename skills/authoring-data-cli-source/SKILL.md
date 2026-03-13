@@ -40,6 +40,18 @@ Do not use this skill for:
 - ordinary content operations against an existing source
 - unrelated CLI or store changes with no source work
 
+## Install
+
+If `agent-data-cli` is not present locally, install it first:
+
+```bash
+git clone https://github.com/severinzhong/agent-data-cli
+cd agent-data-cli
+uv sync
+```
+
+Then load the bundled skills from this repository's `skills/` directory and work from the repo root.
+
 ## Workflow
 
 ### 1. Research

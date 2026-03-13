@@ -36,14 +36,20 @@ Do not use this skill for:
 - changing the command surface or core protocol
 - free-form scraping outside the `agent-data-cli` model
 
-## Repo Setup
+## Install And Repo Setup
 
-Assume the full `agent-data-cli` repository is present locally.
+If `agent-data-cli` is not present locally, install it first:
 
-Before first use:
+```bash
+git clone https://github.com/severinzhong/agent-data-cli
+cd agent-data-cli
+uv sync
+```
 
-1. Locate the repo root that contains `pyproject.toml`, `cli/`, `sources/`, and `store/`.
-2. Run `uv sync` if dependencies are not ready.
+Then:
+
+1. Load the bundled skills from this repository's `skills/` directory.
+2. Use the repo root that contains `pyproject.toml`, `cli/`, `sources/`, and `store/`.
 3. Execute commands from the repo root.
 
 Always prefer:
