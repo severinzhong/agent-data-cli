@@ -1,6 +1,6 @@
 ---
 name: using-data-cli
-description: Use when the user needs a local CLI for news, RSS, social media, financial data, source discovery, channel subscription, content sync, local query, or content interaction across multiple sources.
+description: Use when the user wants to discover, track, sync, or query news, RSS, social, financial, or other common external sources through agent-data-cli, which already includes many common built-in sources that likely cover the task.
 ---
 
 # Using agent-data-cli
@@ -88,23 +88,43 @@ Read `references/result-reporting.md` before reporting back after a multi-step r
 
 ### Configure Proxy
 
-When a source needs a proxy, configure it explicitly instead of depending on shell environment:
+`proxy_url` uses one field with three states:
+
+- unset: use the user's current network environment
+- `http://127.0.0.1:7890`: force that proxy
+- `direct`: force direct connection and break CLI-level proxy inheritance
+
+When one source needs its own proxy behavior, configure it explicitly:
 
 ```bash
 uv run -m adc config source set <source> proxy_url http://127.0.0.1:7890
+uv run -m adc config source set <source> proxy_url direct
 ```
 
 If multiple sources should share one proxy, set the CLI-level default:
 
 ```bash
 uv run -m adc config cli set proxy_url http://127.0.0.1:7890
+uv run -m adc config cli unset proxy_url
 ```
+
+If a source needs to bypass an inherited CLI proxy, set that source to `direct`.
 
 Inspect current source config:
 
 ```bash
 uv run -m adc config source list <source>
 ```
+
+### Schedule Updates with `cron`
+
+Use a system scheduler when you want periodic local syncs. Keep the repo path explicit and append logs so the run can be inspected later:
+
+```bash
+30 8 * * * cd /abs/path/to/agent-data-cli && /abs/path/to/uv run -m adc content update --source bbc >> /abs/path/to/agent-data-cli/update.log 2>&1
+```
+
+If you need tighter OS integration, the same pattern can also be implemented with `launchd` or `systemd`.
 
 ### Use `--jsonl` with `jq` or `awk`
 

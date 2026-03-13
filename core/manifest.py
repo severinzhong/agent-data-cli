@@ -50,7 +50,7 @@ RESERVED_PARAM_NAMES = {
     "mode",
     "name",
 }
-CONFIG_FIELD_TYPES = {"string", "int", "bool", "enum", "url", "path", "json"}
+CONFIG_FIELD_TYPES = {"string", "int", "bool", "enum", "url", "path", "json", "proxy"}
 INTERACTION_PARAM_TYPES = {"string", "int", "bool", "enum", "path"}
 IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 

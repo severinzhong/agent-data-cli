@@ -119,6 +119,22 @@ Install dependencies:
 uv sync
 ```
 
+## Proxy Configuration
+
+`proxy_url` uses one field with three states:
+
+- unset: use the user's current network environment
+- `http://127.0.0.1:7890`: force that proxy
+- `direct`: force direct connection and do not inherit the CLI-level proxy
+
+Examples:
+
+```bash
+uv run -m adc config cli set proxy_url http://127.0.0.1:7890
+uv run -m adc config source set bbc proxy_url direct
+uv run -m adc config cli unset proxy_url
+```
+
 ## How It Works
 
 For an agent, the happy path is simple:

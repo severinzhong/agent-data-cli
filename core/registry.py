@@ -22,9 +22,10 @@ from .base import BaseSource
 CLI_CONFIG_FIELDS: tuple[ConfigFieldSpec, ...] = (
     ConfigFieldSpec(
         key="proxy_url",
-        type="url",
+        type="proxy",
         secret=False,
-        description="Default proxy URL inherited by sources that opt in",
+        description="Default proxy URL inherited by sources that opt in. Leave unset to use environment proxy settings. Set direct to force direct connection.",
+        example="http://127.0.0.1:7890 or direct",
     ),
     ConfigFieldSpec(
         key="default_user_agent",

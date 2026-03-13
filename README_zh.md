@@ -119,6 +119,22 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 uv sync
 ```
 
+## 代理配置
+
+`proxy_url` 只保留一个字段，但有三种语义：
+
+- 未配置：使用用户当前网络环境
+- `http://127.0.0.1:7890`：强制走这个代理
+- `direct`：强制直连，并且不继承 CLI 级代理
+
+示例：
+
+```bash
+uv run -m adc config cli set proxy_url http://127.0.0.1:7890
+uv run -m adc config source set bbc proxy_url direct
+uv run -m adc config cli unset proxy_url
+```
+
 ## 工作方式
 
 对 agent 来说，最短路径就是：

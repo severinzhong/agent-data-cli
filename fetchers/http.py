@@ -6,14 +6,20 @@ import urllib.request
 from .base import default_headers
 
 
+DIRECT_PROXY_VALUE = "direct"
+
+
 class HttpFetcher:
     def __init__(self, proxy_url: str | None = None) -> None:
-        if proxy_url:
+        if proxy_url is None:
+            self._opener = urllib.request.build_opener()
+            return
+        if proxy_url == DIRECT_PROXY_VALUE:
+            handler = urllib.request.ProxyHandler({})
+        else:
             handler = urllib.request.ProxyHandler(
                 {"http": proxy_url, "https": proxy_url}
             )
-        else:
-            handler = urllib.request.ProxyHandler({})
         self._opener = urllib.request.build_opener(handler)
 
     def get_bytes(

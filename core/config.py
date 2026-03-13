@@ -145,6 +145,10 @@ def resolve_source_config(
 
 
 def validate_config_value(spec: ConfigFieldSpec, raw_value: str, *, owner: str) -> None:
+    if spec.type == "proxy":
+        if not raw_value.strip():
+            raise SourceConfigError(f"invalid proxy config for {owner}.{spec.key}")
+        return
     if spec.type == "enum":
         if raw_value not in spec.choices:
             raise SourceConfigError(f"invalid value for {owner}.{spec.key}: {raw_value}")
@@ -190,29 +194,31 @@ def build_config_check_items(
 
 
 def _validate_entry_type(source: str, spec: ConfigFieldSpec, entry: SourceConfigEntry) -> None:
-    if entry.value_type == spec.type:
-        return
-    if spec.type in {"url", "path", "enum"} and entry.value_type == "string":
-        return
-    if spec.type == "string" and entry.value_type in {"url", "path", "enum"}:
-        return
-    if entry.value_type != spec.type:
+    if not _config_types_compatible(spec.type, entry.value_type):
         raise SourceConfigError(
             f"config type mismatch for {source}.{spec.key}: expected {spec.type}, got {entry.value_type}"
         )
 
 
 def _validate_cli_inheritance(source: str, spec: ConfigFieldSpec, entry: SourceConfigEntry) -> None:
-    if entry.value_type == spec.type:
-        return
-    if spec.type in {"url", "path", "enum"} and entry.value_type == "string":
-        return
-    if spec.type == "string" and entry.value_type in {"url", "path", "enum"}:
-        return
-    if entry.value_type != spec.type:
+    if not _config_types_compatible(spec.type, entry.value_type):
         raise SourceConfigError(
             f"cli config type mismatch for {source}.{spec.key}: expected {spec.type}, got {entry.value_type}"
         )
+
+
+def _config_types_compatible(expected: str, actual: str) -> bool:
+    if actual == expected:
+        return True
+    if expected in {"url", "path", "enum", "proxy"} and actual == "string":
+        return True
+    if expected == "string" and actual in {"url", "path", "enum", "proxy"}:
+        return True
+    if expected == "proxy" and actual == "url":
+        return True
+    if expected == "url" and actual == "proxy":
+        return True
+    return False
 
 
 def _parse_entry_value(entry: SourceConfigEntry):
