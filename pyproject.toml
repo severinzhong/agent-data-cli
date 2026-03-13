@@ -5,6 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "httpx>=0.28.1",
     "playwright>=1.58.0",
+    "pycryptodome>=3.23.0",
     "rich>=14.3.3",
+    "xhshow>=0.1.9",
 ]

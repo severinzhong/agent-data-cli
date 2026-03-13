@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README_zh.md)
 
-> Making All Data Available to AI.
+> Making All Data AI-Native.
 > Turn Any Data Source into a CLI.
 > Let agents operate it and aggregate the data for you.
 > This project defines a protocol so data sources can talk to agents through a stable, uniform `command language`.
@@ -36,7 +36,7 @@ Once those built-in skills are loaded, an agent can follow the same command surf
 
 In one line: `agent-data-cli` is about making all data AI-native and turning any data source into a CLI.
 
-## Hand It to an Agent to Install
+## Install with an Agent
 
 Give your agent the repository URL directly. You can say things like:
 
@@ -69,10 +69,17 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
+| `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
+
+`xiaohongshu` uses `user/<user_id>` as the only formal channel type. Configure the source with a full `cookie` header string, then use `channel search` to discover users, `content search` to discover notes, `content update` to sync subscribed user channels, and `content interact` for note-level `like`, `unlike`, `favorite`, `unfavorite`, and `comment`.
+
+Thanks to [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli).
+
+After equipping the `authoring-data-cli-source` skill, tell your agent to turn `https://github.com/jackwener/xiaohongshu-cli` into a source, then follow the agent's guidance step by step. From development through testing, the whole process took about 3-4 hours. enjoy~💗
 
 ---
 

@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README_zh.md)
 
-> 让所有数据都能被AI获取。
+> 让所有数据 AI-Native。
 > 把任意数据源 CLI 化。
 > AGENT帮你操作，帮你归集数据
 > 本项目是一套协议，让数据源能够方便的和AGENT沟通，使用稳定统一的`命令语言`
@@ -70,10 +70,17 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
+| `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
+
+`xiaohongshu` 首版只把 `user/<user_id>` 建模为正式 channel。给 source 配置完整的 `cookie` 请求头字符串后，可以用 `channel search` 搜用户、用 `content search` 搜笔记、用 `content update` 同步已订阅用户频道，并通过 `content interact` 执行 note 级 `like`、`unlike`、`favorite`、`unfavorite`、`comment`。
+
+感谢 [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli)。
+
+装配 `authoring-data-cli-source` 技能后，对 agent 说把 `https://github.com/jackwener/xiaohongshu-cli` 处理成 source，然后按照 agent 指引操作，完成开发到测试用时 3-4 小时，enjoy～💗
 
 ---
 
