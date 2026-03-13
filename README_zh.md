@@ -52,6 +52,15 @@ https://github.com/severinzhong/agent-data-cli
 - “用 `agent-data-cli` 帮我找 source、订阅 channel、同步更新，再读取本地结果。”
 - “使用 `agent-data-cli` 里的 source authoring skill，帮我新增一个 source。”
 
+## 从 skills.sh 单独安装这两个 skill
+
+如果你只想安装这两个内置 skill，可以直接执行：
+
+```bash
+npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data-cli
+npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-data-cli-source
+```
+
 ## 为什么是 agent-data-cli？
 
 - AI-native 工具需要稳定的命令面，而不是一堆临时网页路径和站点脚本。

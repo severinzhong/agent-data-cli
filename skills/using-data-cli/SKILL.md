@@ -1,6 +1,6 @@
 ---
 name: using-data-cli
-description: Use when the user wants to use agent-data-cli as a local information center for news, social media, financial data, RSS feeds, or other multi-source content, and needs to discover, subscribe, sync, query, or interact with that content.
+description: Use when the user needs a local CLI for news, RSS, social media, financial data, source discovery, channel subscription, content sync, local query, or content interaction across multiple sources.
 ---
 
 # Using agent-data-cli
@@ -8,6 +8,8 @@ description: Use when the user wants to use agent-data-cli as a local informatio
 ## Overview
 
 `agent-data-cli` is a local information center for multi-source content.
+
+This skill is for discovering sources, searching channels, subscribing, syncing remote content, querying the local database, and running explicit interactions against news, RSS, social media, and financial data sources.
 
 Use it for:
 
@@ -35,6 +37,14 @@ Do not use this skill for:
 - implementing or redesigning a source
 - changing the command surface or core protocol
 - free-form scraping outside the `agent-data-cli` model
+
+## Install From skills.sh
+
+Install this skill directly from `skills.sh`:
+
+```bash
+npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data-cli
+```
 
 ## Install And Repo Setup
 

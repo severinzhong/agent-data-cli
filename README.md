@@ -52,6 +52,15 @@ Example prompts:
 - "Use `agent-data-cli` to find a source, subscribe to a channel, sync it, and then query the local records."
 - "Use the bundled source-authoring skill from `agent-data-cli` and scaffold a new source."
 
+## Install Individual skills from skills.sh
+
+Install the two bundled skills individually from `skills.sh`:
+
+```bash
+npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data-cli
+npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-data-cli-source
+```
+
 ## Why agent-data-cli?
 
 - AI-native tools need stable command surfaces instead of ad hoc browsing paths.

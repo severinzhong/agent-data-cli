@@ -1,6 +1,6 @@
 ---
 name: authoring-data-cli-source
-description: Use when the user wants to add, redesign, or extend an agent-data-cli source, especially when the work may involve RSS, APIs, scraping, browser automation, authentication, or remote side effects.
+description: Use when the user needs to add or redesign an agent-data-cli source for RSS, news, social media, finance, APIs, scraping, browser automation, authentication, or remote content sync.
 ---
 
 # Authoring agent-data-cli source
@@ -10,6 +10,8 @@ description: Use when the user wants to add, redesign, or extend an agent-data-c
 Use this skill to design and implement an `agent-data-cli` source with stable behavior and clear project fit.
 
 This skill is deliberately stricter than normal feature work because a weak source design causes protocol drift, command confusion, and unreliable sync behavior.
+
+It is the source-authoring path for RSS feeds, HTTP APIs, HTML scraping, browser-driven sites, finance data, news content, and other remote content systems that must fit the `source/channel/content` model.
 
 ## Hard Gate
 
@@ -39,6 +41,14 @@ Do not use this skill for:
 
 - ordinary content operations against an existing source
 - unrelated CLI or store changes with no source work
+
+## Install From skills.sh
+
+Install this skill directly from `skills.sh`:
+
+```bash
+npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-data-cli-source
+```
 
 ## Install
 
