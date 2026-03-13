@@ -75,9 +75,9 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 
-`xiaohongshu` uses `user/<user_id>` as the only formal channel type. Configure the source with a full `cookie` header string, then use `channel search` to discover users, `content search` to discover notes, `content update` to sync subscribed user channels, and `content interact` for note-level `like`, `unlike`, `favorite`, `unfavorite`, and `comment`.
+## Thanks 
 
-Thanks to [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli).
+to [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli).
 
 After equipping the `authoring-data-cli-source` skill, tell your agent to turn `https://github.com/jackwener/xiaohongshu-cli` into a source, then follow the agent's guidance step by step. From development through testing, the whole process took about 3-4 hours. enjoy~💗
 

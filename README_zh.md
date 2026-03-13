@@ -76,7 +76,7 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 
-`xiaohongshu` 首版只把 `user/<user_id>` 建模为正式 channel。给 source 配置完整的 `cookie` 请求头字符串后，可以用 `channel search` 搜用户、用 `content search` 搜笔记、用 `content update` 同步已订阅用户频道，并通过 `content interact` 执行 note 级 `like`、`unlike`、`favorite`、`unfavorite`、`comment`。
+## Thanks
 
 感谢 [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli)。
 
