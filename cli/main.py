@@ -22,4 +22,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def console_main() -> None:
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
