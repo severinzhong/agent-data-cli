@@ -1,67 +1,68 @@
 # agent-data-cli
 
-[English](./README.md) | [中文](./README_zh.md)
+[English](./README_en.md) | [中文](./README.md)
 
-> Making All Data AI-Native.
-> Turn Any Data Source into a CLI.
-> Let agents operate it and aggregate the data for you.
-> This project defines a protocol so data sources can talk to agents through a stable, uniform `command language`.
+> 让所有数据 AI-Native。
+> 把任意数据源 CLI 化。
+> AGENT帮你操作，帮你归集数据
+> 本项目是一套协议，让数据源能够方便的和AGENT沟通，使用稳定统一的`命令语言`
 
-`agent-data-cli` is a local information center for the agent era.
+`agent-data-cli` 是面向 agent 时代的本地信息中心。
 
-Most existing data interfaces were designed for humans. You click through websites, feeds, admin panels, and scattered APIs to find and piece things together. `agent-data-cli` reorganizes that into one explicit, scriptable, locally queryable `cli` interface so agents can operate data reliably.
+过去的大多数数据接口都是为人类设计的，要靠网页、信息流、后台面板和零散 API 去点、去找、去拼。`agent-data-cli` 要做的是把这件事重新组织成一套显式、可脚本化、可本地查询的统一`cli`接口，让 agent 真正能稳定操作数据。
 
-It gives agents and humans one unified entrypoint for:
+它为 agent 和人类提供统一入口，用来处理：
 
-- news
-- social media content
-- financial data
-- RSS feeds
-- other content sources that can be mapped into the `source/channel/content` model
+- 新闻资讯
+- 社交媒体内容
+- 财经数据
+- RSS 订阅源
+- 其他可以映射到 `source/channel/content` 模型的内容源
 
-This repository is also a pack of loadable skills for:
+这个仓库本身也是一组可装载的 skills，面向：
 
 - Codex
 - Claude Code
 - OpenClaw
 
-Once those built-in skills are loaded, an agent can follow the same command surface to discover sources, sync updates, and read results step by step through one command at a time.
+当这些内置 skills 被加载后，agent 就可以沿着同一套命令面，用一条命令一步步完成 source 发现、更新同步和后续读取。
 
-## Why agent-data-cli?
+## 为什么是 agent-data-cli？
 
-- AI-native tools need a stable command surface, not a pile of temporary webpage paths and site scripts.
-- Multi-source data should behave like one system, not a collection of unrelated site adapters.
-- Discovery, sync, local query, and remote side effects need clear boundaries.
-- Agents need an information center they can inspect, update, query, and extend, not a toolbox built from implicit behavior.
+- AI-native工具需要稳定的命令面，而不是一堆临时网页路径和站点脚本。
+- 多源数据应该表现成一个系统，而不是互不相干的站点适配器集合。
+- 发现、同步、本地查询、远端副作用必须有清晰边界。
+- Agent 需要一个可以检查、更新、查询、扩展的信息中心，而不是隐式行为堆出来的工具箱。
 
-In one line: `agent-data-cli` is about making all data AI-native and turning any data source into a CLI.
+一句话：`agent-data-cli` 的目标就是让所有数据 AI-Native，并把任意数据源 CLI 化。
 
-## Install with an Agent
+## 交给 Agent 安装
 
-Give your agent the repository URL directly. You can say things like:
+把这个仓库地址直接交给你的 agent，你可以直接这样说：
 
-- "Install `agent-data-cli` from `https://github.com/severinzhong/agent-data-cli`, load the built-in skills, and use it directly for me."
-- "Use `agent-data-cli` to help me find a source, subscribe to channels, sync updates, and then read the local results."
-- "Use the source authoring skill in `agent-data-cli` to add a new source for me."
+- “从 `https://github.com/severinzhong/agent-data-cli` 安装 `agent-data-cli`，装载内置 skills，然后直接帮我用。”
+- “用 `agent-data-cli` 帮我找 source、订阅 channel、同步更新，再读取本地结果。”
+- “使用 `agent-data-cli` 里的 source authoring skill，帮我新增一个 source。”
 
-## Install These Two skills Separately from skills.sh
+## 从 skills.sh 单独安装这两个 skill
 
-If you only want these two built-in skills, run:
+如果你只想安装这两个内置 skill，可以直接执行：
 
 ```bash
 npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data-cli
 npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-data-cli-source
 ```
 
-## Semantic Alignment
+## 语义对齐
 
-`agent-data-cli` keeps only two core resource levels: `source` and `channel`.
+`agent-data-cli` 的核心模型只保留两层资源：`source` 和 `channel`。
 
-- `source`: a concrete data source implementation and a capability boundary, such as a news site, a market data provider, or a social media platform.
-- `channel`: a trackable target inside a source. A channel can be a feed, a stock symbol, or an RSSHub route. You can discover channels, subscribe or unsubscribe them, add them to groups, and run `content update` on subscribed channels. Examples include BBC's `world`, A-share symbol `sh600001`, and RSSHub route `/youtube/channel/<id>`.
-- `content`: a remote search result or a local record written after sync. You use `content search` for remote discovery, `content query` for local reads, and `content update` to sync remote content from subscribed channels into the local store. If a source later declares interaction verbs, you can also use `content interact` to run explicit remote actions on individual content items.
+- `source`：一种具体的数据源实现，也是能力边界，比如一个新闻站点、一个股市数据源，或一个社交媒体平台。
+- `channel`：source 内部一个可跟踪目标，可以是一条 feed、一个股票代码、一个 RSSHub 路由。你可以发现 channel、订阅或取消订阅、加入 group，并对已订阅的 channel 执行 `content update`。例如 `bbc` 的 `world`、`ashare` 的 `sh600001`、`rsshub` 的 `/youtube/channel/<id>`。
+- `content`：一次远端搜索结果，或一次同步后写入本地的内容记录。你可以用 `content search` 做远端发现，用 `content query` 读取本地库，用 `content update` 把已订阅 channel 的远端内容同步到本地；如果某个 source 以后声明了交互动词，还可以通过 `content interact` 对单条内容执行显式远端操作。
 
-## Current Built-in Sources
+
+## 当前内置 Source
 
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
@@ -75,36 +76,36 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 
-## Thanks 
+## Thanks
 
-to [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli).
+感谢 [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli)。
 
-After equipping the `authoring-data-cli-source` skill, tell your agent to turn `https://github.com/jackwener/xiaohongshu-cli` into a source, then follow the agent's guidance step by step. From development through testing, the whole process took about 3-4 hours. enjoy~💗
+装配 `authoring-data-cli-source` 技能后，对 agent 说把 `https://github.com/jackwener/xiaohongshu-cli` 处理成 source，然后按照 agent 指引操作，完成开发到测试用时 3-4 小时，enjoy～💗
 
 ---
 
-# The Rest Below Is for Agents, Not Humans
+# 以下内容由AGNET阅读，人类无需阅读
 
-## Requirements
+## 环境要求
 
 - Python `3.12+`
 - `uv`
 
-Install dependencies:
+安装依赖：
 
 ```bash
 uv sync
 ```
 
-## Proxy Configuration
+## 代理配置
 
-`proxy_url` keeps a single field with three meanings:
+`proxy_url` 只保留一个字段，但有三种语义：
 
-- unset: use the user's current network environment
-- `http://127.0.0.1:7890`: force that proxy
-- `direct`: force direct connection and do not inherit the CLI-level proxy
+- 未配置：使用用户当前网络环境
+- `http://127.0.0.1:7890`：强制走这个代理
+- `direct`：强制直连，并且不继承 CLI 级代理
 
-Examples:
+示例：
 
 ```bash
 uv run -m adc config cli set proxy_url http://127.0.0.1:7890
@@ -112,25 +113,25 @@ uv run -m adc config source set bbc proxy_url direct
 uv run -m adc config cli unset proxy_url
 ```
 
-## How It Works
+## 工作方式
 
-For an agent, the shortest path is:
+对 agent 来说，最短路径就是：
 
-1. Discover a source or channel.
-2. Subscribe first if you want to track it continuously.
-3. Sync remote data into the local store.
-4. Read from the local database.
-5. Run explicit remote interactions only when needed.
+1. 发现 source 或 channel
+2. 如果要持续跟踪，就先订阅
+3. 把远端数据同步到本地
+4. 从本地数据库读取
+5. 需要时再执行显式远端交互
 
-Unified entrypoint:
+统一入口：
 
 ```bash
 uv run -m adc ...
 ```
 
-## Command Model
+## 命令模型
 
-The stable command families are:
+稳定命令族如下：
 
 ```text
 source
@@ -142,17 +143,17 @@ config
 help
 ```
 
-Semantic boundaries:
+语义边界：
 
-- `channel search`: remote channel discovery only
-- `content search`: remote content discovery only, no persistence
-- `content update`: sync subscribed targets and write them locally
-- `content query`: local-only query
-- `content interact`: explicit remote side effects only
+- `channel search`：只做远端 channel 发现
+- `content search`：只做远端内容发现，不落库
+- `content update`：同步已订阅目标并写入本地
+- `content query`：只查本地
+- `content interact`：只做显式远端副作用
 
-## Minimal CLI Surface
+## 最小 CLI 面
 
-Keeping a few common examples is enough:
+保留几个最常用例子就够了：
 
 ```bash
 uv run -m adc help
@@ -162,21 +163,21 @@ uv run -m adc content update --group stocks --dry-run
 uv run -m adc content query --source bbc --limit 10
 ```
 
-Interact command shape:
+交互命令形态：
 
 ```bash
 uv run -m adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
 ```
 
-## Local Data
+## 本地数据
 
-Default database file:
+默认数据库文件：
 
 ```text
 agent-data-cli.db
 ```
 
-The shared store layer persists:
+共享存储层会统一保存：
 
 - channels
 - subscriptions
@@ -187,46 +188,46 @@ The shared store layer persists:
 - source configs
 - cli configs
 - action audits
-- per-source content tables such as `bbc_records` and `rsshub_records`
+- 各 source 的内容表，例如 `bbc_records`、`rsshub_records`
 
-## Project Layout
+## 项目结构
 
 ```text
-cli/        argument parsing, command dispatch, output formatting
-core/       protocol, manifest, registry, shared models
-fetchers/   HTTP / browser fetching
-store/      SQLite persistence, deduplication, sync state, config, audit
-sources/    isolated source implementations
-skills/     agent skills shipped with the repository
-tests/      unit tests and simulated CLI tests
+cli/        参数解析、命令分发、输出格式化
+core/       协议、manifest、registry、共享模型
+fetchers/   HTTP / 浏览器抓取
+store/      SQLite 持久化、去重、sync state、config、audit
+sources/    隔离的 source 实现
+skills/     随仓库分发的 agent skills
+tests/      单元测试与 CLI 模拟测试
 ```
 
-Current built-in skills:
+当前内置 skills：
 
 - [`using-data-cli`](./skills/using-data-cli/SKILL.md)
 - [`authoring-data-cli-source`](./skills/authoring-data-cli-source/SKILL.md)
 
-## Testing
+## 测试
 
-Run the full test suite:
+跑全量测试：
 
 ```bash
 env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u no_proxy -u NO_PROXY .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-`tests/test_browser_fetcher.py` is a real integration test and requires a local Chrome instance with CDP enabled at:
+`tests/test_browser_fetcher.py` 是真实集成测试，要求本机存在一个开启了 CDP 的 Chrome：
 
 ```text
 http://127.0.0.1:9222
 ```
 
-## Developing a New Source
+## 开发新 Source
 
-The standard path for adding a new source is:
+新增 source 的标准路径：
 
-1. Create `sources/<name>/source.py`.
-2. Inherit `BaseSource`.
-3. Declare `MANIFEST` and `SOURCE_CLASS`.
-4. Keep site-specific logic inside `sources/<name>/`.
+1. 新建 `sources/<name>/source.py`
+2. 继承 `BaseSource`
+3. 声明 `MANIFEST` 和 `SOURCE_CLASS`
+4. 把站点逻辑限制在 `sources/<name>/` 内部
 
-If the source is more complex, prefer splitting it into local modules under `sources/<name>/` instead of piling everything into one oversized `source.py`.
+如果 source 较复杂，优先在 `sources/<name>/` 下继续拆分本地模块，而不是把所有逻辑堆进一个超大的 `source.py`。
