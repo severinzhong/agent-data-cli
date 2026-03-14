@@ -62,19 +62,59 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 - `content`：一次远端搜索结果，或一次同步后写入本地的内容记录。你可以用 `content search` 做远端发现，用 `content query` 读取本地库，用 `content update` 把已订阅 channel 的远端内容同步到本地；如果某个 source 以后声明了交互动词，还可以通过 `content interact` 对单条内容执行显式远端操作。
 
 
-## 当前内置 Source
+## Source Workspace
+
+`agent-data-cli` 可以配合伴生项目 [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub) 使用。
+
+core 默认内置一个很轻的 `data_hub` source。
+
+`agent-data-hub` 里放的是我已经整理好的 source，`agent-data-cli` 通过 `source_workspace` 去发现它们：
+
+- CLI 配置项：`source_workspace`
+- 默认路径：`./sources`
+- 目录约定：每个一级子目录都是一个 source package
+
+示例：
+
+```bash
+uv run -m adc config cli explain source_workspace
+uv run -m adc config cli set source_workspace ./sources
+uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
+```
+
+`source list` 只会列出当前 workspace 中已经存在的 source。
+
+## `data_hub` 与 `agent-data-hub`
+
+推荐直接这样理解：
+
+- `agent-data-hub` 是 source 仓库，同时提供 `sources.json`
+- `data_hub` 是内置在 core 里的轻量 source，用来读取这个索引并发现、引入这些官方整理好的 source
+- 安装 source 仍然走现有协议，不额外引入新命令族
+
+典型流程：
+
+```bash
+uv run -m adc content search --source data_hub --channel official --query xiaohongshu
+uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+```
+
+## 官方整理 Source
+
+这些 source 现在由 [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub) 提供：
 
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
 | `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `data_hub` | ❌ | ✅ | ✅ | ✅ | ✅ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
-| `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
+| `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## Thanks
 
@@ -91,11 +131,13 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 - Python `3.12+`
 - `uv`
 
-安装依赖：
+安装 core 依赖：
 
 ```bash
 uv sync
 ```
+
+source 专属依赖属于 source workspace，不属于 core 项目 manifest。
 
 ## 代理配置
 
@@ -158,9 +200,9 @@ help
 ```bash
 uv run -m adc help
 uv run -m adc source list
-uv run -m adc content search --source bbc --query openai --limit 5
+uv run -m adc content search --source data_hub --channel official --query rss --limit 5
 uv run -m adc content update --group stocks --dry-run
-uv run -m adc content query --source bbc --limit 10
+uv run -m adc content query --source data_hub --limit 10
 ```
 
 交互命令形态：
@@ -188,7 +230,7 @@ agent-data-cli.db
 - source configs
 - cli configs
 - action audits
-- 各 source 的内容表，例如 `bbc_records`、`rsshub_records`
+- 各 source 的内容表，例如 `data_hub_records` 以及任意已安装 source 的内容表
 
 ## 项目结构
 
@@ -197,9 +239,28 @@ cli/        参数解析、命令分发、输出格式化
 core/       协议、manifest、registry、共享模型
 fetchers/   HTTP / 浏览器抓取
 store/      SQLite 持久化、去重、sync state、config、audit
-sources/    隔离的 source 实现
 skills/     随仓库分发的 agent skills
 tests/      单元测试与 CLI 模拟测试
+sources/    默认本地 source_workspace 路径，通常由 agent-data-hub 提供内容
+```
+
+## Source 安装边界
+
+不要把 source runtime 依赖安装进 core 项目的 manifest。
+
+禁止：
+
+```bash
+uv add playwright
+uv add xhshow
+```
+
+允许的 source 本地安装方式：
+
+```bash
+uv pip install -p .venv/bin/python -r /abs/path/to/source/requirements.txt
+uv pip install -p .venv/bin/python -e /abs/path/to/source
+bash /abs/path/to/source/init.sh
 ```
 
 当前内置 skills：
@@ -223,11 +284,13 @@ http://127.0.0.1:9222
 
 ## 开发新 Source
 
-新增 source 的标准路径：
+新增 source 时，应该在 source workspace 仓库里开发，通常是 `agent-data-hub`，而不是直接改 tracked 的 core 仓库。
 
-1. 新建 `sources/<name>/source.py`
+标准路径仍然是：
+
+1. 新建 `<source_workspace>/<name>/source.py`
 2. 继承 `BaseSource`
 3. 声明 `MANIFEST` 和 `SOURCE_CLASS`
-4. 把站点逻辑限制在 `sources/<name>/` 内部
+4. 把站点逻辑限制在 `<source_workspace>/<name>/` 内部
 
-如果 source 较复杂，优先在 `sources/<name>/` 下继续拆分本地模块，而不是把所有逻辑堆进一个超大的 `source.py`。
+如果 source 有额外 runtime 依赖，把它们留在该 source 自己的目录里，通过 `uv pip install` 或 `init.sh` 安装，不要在 core 仓库里执行 `uv add`。

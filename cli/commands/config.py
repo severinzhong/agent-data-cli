@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cli.formatters import print_config_check, print_config_entries
+from cli.formatters import print_cli_config_entries, print_config_check, print_config_entries
 from cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
 from core.config import validate_config_value
 from core.manifest import CORE_ACTION_NAMES, SOURCE_ACTION_NAMES
@@ -11,7 +11,7 @@ CONFIG_CHECK_ACTION_IDS = CORE_ACTION_NAMES | SOURCE_ACTION_NAMES
 
 def _run_config_cli_list(args, extras: list[str], ctx: CommandContext) -> int:
     _ = args, extras
-    print_config_entries(ctx.store.list_cli_configs())
+    _print_cli_config_entries(ctx)
     return 0
 
 
@@ -20,14 +20,14 @@ def _run_config_cli_set(args, extras: list[str], ctx: CommandContext) -> int:
     spec = ctx.registry.get_cli_config_field_spec(args.key)
     validate_config_value(spec, args.value, owner="cli")
     ctx.store.set_cli_config(args.key, args.value, spec.type, spec.secret)
-    print_config_entries(ctx.store.list_cli_configs())
+    _print_cli_config_entries(ctx)
     return 0
 
 
 def _run_config_cli_unset(args, extras: list[str], ctx: CommandContext) -> int:
     _ = extras
     ctx.store.unset_cli_config(args.key)
-    print_config_entries(ctx.store.list_cli_configs())
+    _print_cli_config_entries(ctx)
     return 0
 
 
@@ -87,6 +87,18 @@ def _print_config_explain(owner: str, spec) -> None:
         print(f"obtain_hint: {spec.obtain_hint}")
     if spec.example:
         print(f"example: {spec.example}")
+
+
+def _print_cli_config_entries(ctx: CommandContext) -> None:
+    defaults_by_key = {
+        spec.key: ctx.registry.get_cli_config_default(spec.key)
+        for spec in ctx.registry.get_cli_config_specs()
+    }
+    print_cli_config_entries(
+        ctx.registry.get_cli_config_specs(),
+        ctx.store.list_cli_configs(),
+        defaults_by_key,
+    )
 
 
 def _validate_config_check_action_id(action_id: str | None) -> None:

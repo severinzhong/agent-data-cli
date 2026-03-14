@@ -1,6 +1,9 @@
 # AGENT
 AGENTS.md
 docs
+sources/*
+!sources/data_hub/
+!sources/data_hub/**
 
 # test
 tests

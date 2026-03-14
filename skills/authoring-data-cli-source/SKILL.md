@@ -62,6 +62,13 @@ uv sync
 
 Then load the bundled skills from this repository's `skills/` directory and work from the repo root.
 
+Important boundary:
+
+- source code belongs in the source workspace repo, typically `agent-data-hub`
+- keep `agent-data-cli` focused on core/cli/store/protocol work
+- do not install source runtime dependencies into the core project with `uv add`
+- use `uv pip install` or `init.sh` inside the source workspace instead
+
 ## Workflow
 
 ### 1. Research

@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from core.config import ConfigCheckItem, SourceConfigEntry
+from core.manifest import ConfigFieldSpec
 from core.models import (
     CapabilityStatus,
     ChannelRecord,
@@ -276,6 +277,46 @@ def render_config_entries_table(items: list[SourceConfigEntry]) -> Table:
     return table
 
 
+def render_cli_config_entries_table(
+    specs: tuple[ConfigFieldSpec, ...],
+    items: list[SourceConfigEntry],
+    defaults_by_key: dict[str, str | None],
+) -> Table:
+    table = _new_table()
+    table.add_column("scope", overflow="ellipsis")
+    table.add_column("key", overflow="ellipsis")
+    table.add_column("value", overflow="ellipsis", max_width=40)
+    table.add_column("type", overflow="ellipsis")
+    table.add_column("secret", justify="right")
+    table.add_column("origin", overflow="ellipsis")
+    table.add_column("updated_at", overflow="ellipsis", no_wrap=True)
+    items_by_key = {item.key: item for item in items}
+    for spec in specs:
+        item = items_by_key.get(spec.key)
+        default_value = defaults_by_key.get(spec.key)
+        if item is not None:
+            table.add_row(
+                item.source,
+                item.key,
+                "***" if item.is_secret else item.value,
+                item.value_type,
+                str(int(item.is_secret)),
+                "explicit",
+                item.updated_at,
+            )
+            continue
+        table.add_row(
+            "cli",
+            spec.key,
+            default_value if default_value is not None else "unset",
+            spec.type,
+            str(int(spec.secret)),
+            "default" if default_value is not None else "unset",
+            "",
+        )
+    return table
+
+
 def render_config_check_table(check: SourceConfigCheck) -> Table:
     table = _new_table()
     table.add_column("key", overflow="ellipsis")
@@ -350,6 +391,14 @@ def print_interaction_results(items: list[InteractionResult]) -> None:
 
 def print_config_entries(items: list[SourceConfigEntry]) -> None:
     _CONSOLE.print(render_config_entries_table(items))
+
+
+def print_cli_config_entries(
+    specs: tuple[ConfigFieldSpec, ...],
+    items: list[SourceConfigEntry],
+    defaults_by_key: dict[str, str | None],
+) -> None:
+    _CONSOLE.print(render_cli_config_entries_table(specs, items, defaults_by_key))
 
 
 def print_config_check(check: SourceConfigCheck) -> None:

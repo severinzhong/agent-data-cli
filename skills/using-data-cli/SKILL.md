@@ -1,6 +1,6 @@
 ---
 name: using-data-cli
-description: Use when the user wants to discover, track, sync, or query news, RSS, social, financial, or other common external sources through agent-data-cli, which already includes many common built-in sources that likely cover the task.
+description: Use when the user wants to discover, track, sync, or query news, RSS, social, financial, or other external sources through agent-data-cli and any configured source workspace such as agent-data-hub.
 ---
 
 # Using agent-data-cli
@@ -59,8 +59,9 @@ uv sync
 Then:
 
 1. Load the bundled skills from this repository's `skills/` directory.
-2. Use the repo root that contains `pyproject.toml`, `cli/`, `sources/`, and `store/`.
-3. Execute commands from the repo root.
+2. Use the repo root that contains `pyproject.toml`, `cli/`, and `store/`.
+3. Treat `source_workspace` as external configuration. The default path is `./sources`, and it is typically backed by the separate `agent-data-hub` workspace.
+4. Execute commands from the repo root.
 
 Always prefer:
 
@@ -114,6 +115,23 @@ Inspect current source config:
 
 ```bash
 uv run -m adc config source list <source>
+```
+
+### Configure `source_workspace`
+
+Core only loads sources that exist in the current workspace.
+
+```bash
+uv run -m adc config cli explain source_workspace
+uv run -m adc config cli set source_workspace ./sources
+uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
+```
+
+If the workspace contains `data_hub`, use it to discover and install official sources:
+
+```bash
+uv run -m adc content search --source data_hub --channel official --query xiaohongshu
+uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
 ```
 
 ### Schedule Updates with `cron`
@@ -173,5 +191,6 @@ This is useful when you want to:
 - `content update` is the only remote sync path that writes to the database.
 - `content query` is local-only and never triggers remote work.
 - `content interact` is explicit remote side effect execution only.
+- installing source runtime dependencies must stay out of the core project manifest; use `uv pip install` or source-local `init.sh`, not `uv add`
 
 If a task does not fit these boundaries, say so directly instead of approximating.

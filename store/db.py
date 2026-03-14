@@ -33,8 +33,6 @@ class Store:
     def init_schema(self, storage_specs: list[SourceStorageSpec] | None = None) -> None:
         if storage_specs is not None:
             self.set_storage_specs(storage_specs)
-        if not self._storage_specs:
-            raise RuntimeError("storage specs must be provided before init_schema")
         with self._connect() as connection:
             connection.executescript(SCHEMA)
             for spec in self._storage_specs.values():

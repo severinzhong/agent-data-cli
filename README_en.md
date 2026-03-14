@@ -61,19 +61,59 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 - `channel`: a trackable target inside a source. A channel can be a feed, a stock symbol, or an RSSHub route. You can discover channels, subscribe or unsubscribe them, add them to groups, and run `content update` on subscribed channels. Examples include BBC's `world`, A-share symbol `sh600001`, and RSSHub route `/youtube/channel/<id>`.
 - `content`: a remote search result or a local record written after sync. You use `content search` for remote discovery, `content query` for local reads, and `content update` to sync remote content from subscribed channels into the local store. If a source later declares interaction verbs, you can also use `content interact` to run explicit remote actions on individual content items.
 
-## Current Built-in Sources
+## Source Workspace
+
+`agent-data-cli` is intended to work with the companion repository [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub).
+
+Core ships with one lightweight built-in source: `data_hub`.
+
+`agent-data-hub` contains the curated source implementations, and `agent-data-cli` discovers them through `source_workspace`:
+
+- CLI config key: `source_workspace`
+- default path: `./sources`
+- layout: one source package per direct child directory
+
+Examples:
+
+```bash
+uv run -m adc config cli explain source_workspace
+uv run -m adc config cli set source_workspace ./sources
+uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
+```
+
+`source list` only shows sources that exist in the current workspace.
+
+## `data_hub` And `agent-data-hub`
+
+The simplest mental model is:
+
+- `agent-data-hub` is the source repository and provides `sources.json`
+- `data_hub` is the lightweight built-in source used to read that index and discover or install the curated official sources
+- installation still uses the existing protocol surface; there is no separate plugin command family
+
+Typical flow:
+
+```bash
+uv run -m adc content search --source data_hub --channel official --query xiaohongshu
+uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+```
+
+## Curated Sources
+
+These sources are currently provided through [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub):
 
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
 | `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `data_hub` | ❌ | ✅ | ✅ | ✅ | ✅ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
-| `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
+| `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## Thanks 
 
@@ -90,11 +130,13 @@ After equipping the `authoring-data-cli-source` skill, tell your agent to turn `
 - Python `3.12+`
 - `uv`
 
-Install dependencies:
+Install core dependencies:
 
 ```bash
 uv sync
 ```
+
+Source-specific dependencies belong to the source workspace, not to the core project manifest.
 
 ## Proxy Configuration
 
@@ -157,9 +199,9 @@ Keeping a few common examples is enough:
 ```bash
 uv run -m adc help
 uv run -m adc source list
-uv run -m adc content search --source bbc --query openai --limit 5
+uv run -m adc content search --source data_hub --channel official --query rss --limit 5
 uv run -m adc content update --group stocks --dry-run
-uv run -m adc content query --source bbc --limit 10
+uv run -m adc content query --source data_hub --limit 10
 ```
 
 Interact command shape:
@@ -187,7 +229,7 @@ The shared store layer persists:
 - source configs
 - cli configs
 - action audits
-- per-source content tables such as `bbc_records` and `rsshub_records`
+- per-source content tables such as `data_hub_records` and any installed source table
 
 ## Project Layout
 
@@ -196,9 +238,28 @@ cli/        argument parsing, command dispatch, output formatting
 core/       protocol, manifest, registry, shared models
 fetchers/   HTTP / browser fetching
 store/      SQLite persistence, deduplication, sync state, config, audit
-sources/    isolated source implementations
 skills/     agent skills shipped with the repository
 tests/      unit tests and simulated CLI tests
+sources/    default local source_workspace path, usually backed by agent-data-hub
+```
+
+## Source Installation Boundary
+
+Do not install source runtime dependencies into the core project manifest.
+
+Forbidden:
+
+```bash
+uv add playwright
+uv add xhshow
+```
+
+Allowed source-local installation patterns:
+
+```bash
+uv pip install -p .venv/bin/python -r /abs/path/to/source/requirements.txt
+uv pip install -p .venv/bin/python -e /abs/path/to/source
+bash /abs/path/to/source/init.sh
 ```
 
 Current built-in skills:
@@ -222,11 +283,13 @@ http://127.0.0.1:9222
 
 ## Developing a New Source
 
-The standard path for adding a new source is:
+Develop new sources in the source workspace repo, typically `agent-data-hub`, not in the tracked core repository.
 
-1. Create `sources/<name>/source.py`.
+The normal path is still:
+
+1. Create `<source_workspace>/<name>/source.py`.
 2. Inherit `BaseSource`.
 3. Declare `MANIFEST` and `SOURCE_CLASS`.
-4. Keep site-specific logic inside `sources/<name>/`.
+4. Keep site-specific logic inside `<source_workspace>/<name>/`.
 
-If the source is more complex, prefer splitting it into local modules under `sources/<name>/` instead of piling everything into one oversized `source.py`.
+If the source has extra runtime dependencies, keep them in that source package and install them with `uv pip install` or `init.sh`, never with `uv add` in the core repo.

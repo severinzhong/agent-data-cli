@@ -21,6 +21,13 @@ from .base import BaseSource
 
 CLI_CONFIG_FIELDS: tuple[ConfigFieldSpec, ...] = (
     ConfigFieldSpec(
+        key="source_workspace",
+        type="path",
+        secret=False,
+        description="Source workspace root directory scanned for source packages",
+        example="./sources",
+    ),
+    ConfigFieldSpec(
         key="proxy_url",
         type="proxy",
         secret=False,
@@ -58,6 +65,10 @@ CLI_CONFIG_FIELDS: tuple[ConfigFieldSpec, ...] = (
         description="Default browser headless flag",
     ),
 )
+
+CLI_CONFIG_DEFAULTS: dict[str, str] = {
+    "source_workspace": "./sources",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +194,12 @@ class SourceRegistry:
                 return spec
         raise SourceConfigError(f"unknown cli config key: {key}")
 
+    def get_cli_config_specs(self) -> tuple[ConfigFieldSpec, ...]:
+        return CLI_CONFIG_FIELDS
+
+    def get_cli_config_default(self, key: str) -> str | None:
+        return CLI_CONFIG_DEFAULTS.get(key)
+
     def config_check(
         self,
         name: str,
@@ -268,12 +285,21 @@ class SourceRegistry:
             )
         return resolved_mode
 
-
-def build_default_registry(store: Store | None) -> SourceRegistry:
+def build_default_registry(store: Store | None, sources_dir: Path | None = None) -> SourceRegistry:
     registry = SourceRegistry(store=store)
-    sources_dir = Path(__file__).resolve().parent.parent / "sources"
-    for discovered in discover_source_modules(sources_dir):
+    resolved_sources_dir = sources_dir or _resolve_sources_dir(store)
+    for discovered in discover_source_modules(resolved_sources_dir):
         source_class = discovered.source_class
         source_class.manifest = discovered.manifest
         registry.register(source_class, manifest=discovered.manifest)
     return registry
+
+
+def _resolve_sources_dir(store: Store | None) -> Path:
+    default_dir = Path("./sources")
+    if store is None:
+        return default_dir
+    entry = store.get_cli_config_map().get("source_workspace")
+    if entry is None:
+        return default_dir
+    return Path(entry.value).expanduser()
