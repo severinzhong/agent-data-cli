@@ -111,12 +111,14 @@ class HttpFetcher:
         *,
         headers: dict[str, str] | None = None,
         timeout: int = 30,
+        policy: str | RequestPolicy | dict[str, object] | None = None,
     ) -> bytes:
+        resolved_policy = _merge_timeout_into_policy(policy, timeout)
         return self.request(
             "GET",
             url,
             headers=headers,
-            policy={"base": "default", "timeout_s": float(timeout)},
+            policy=resolved_policy,
         ).body
 
     def get_text(
@@ -127,12 +129,14 @@ class HttpFetcher:
         timeout: int = 30,
         encoding: str = "utf-8",
         errors: str = "replace",
+        policy: str | RequestPolicy | dict[str, object] | None = None,
     ) -> str:
+        resolved_policy = _merge_timeout_into_policy(policy, timeout)
         return self.request(
             "GET",
             url,
             headers=headers,
-            policy={"base": "default", "timeout_s": float(timeout)},
+            policy=resolved_policy,
         ).text(
             encoding=encoding,
             errors=errors,
@@ -145,12 +149,14 @@ class HttpFetcher:
         headers: dict[str, str] | None = None,
         timeout: int = 30,
         encoding: str = "utf-8",
+        policy: str | RequestPolicy | dict[str, object] | None = None,
     ):
+        resolved_policy = _merge_timeout_into_policy(policy, timeout)
         return self.request(
             "GET",
             url,
             headers=headers,
-            policy={"base": "default", "timeout_s": float(timeout)},
+            policy=resolved_policy,
         ).json(encoding=encoding)
 
 
@@ -181,6 +187,31 @@ def resolve_request_policy(
             cooldown_scope=str(policy.get("cooldown_scope", base_policy.cooldown_scope)),
         )
     raise TypeError(f"unsupported request policy value: {policy!r}")
+
+
+def _merge_timeout_into_policy(
+    policy: str | RequestPolicy | dict[str, object] | None,
+    timeout: int | float,
+) -> dict[str, object]:
+    if policy is None:
+        return {"base": "default", "timeout_s": float(timeout)}
+    if isinstance(policy, str):
+        return {"base": policy, "timeout_s": float(timeout)}
+    if isinstance(policy, RequestPolicy):
+        return {
+            "base": policy.name,
+            "timeout_s": float(timeout),
+            "min_interval_ms": policy.min_interval_ms,
+            "jitter_ms": policy.jitter_ms,
+            "max_retries": policy.max_retries,
+            "backoff_ms": policy.backoff_ms,
+            "retry_statuses": policy.retry_statuses,
+            "risk_statuses": policy.risk_statuses,
+            "cooldown_scope": policy.cooldown_scope,
+        }
+    merged_policy = dict(policy)
+    merged_policy["timeout_s"] = float(timeout)
+    return merged_policy
 
 
 def detect_risk_signal(response: httpx.Response, markers: RiskMarkers | None) -> RiskSignal | None:
