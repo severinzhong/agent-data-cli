@@ -152,7 +152,6 @@ class SourceRegistry:
             specs.append(
                 SourceStorageSpec(
                     source=manifest.identity.name,
-                    table_name=manifest.storage.table_name,
                     required_record_fields=manifest.storage.required_record_fields,
                     time_field=None if query is None else query.time_field,
                     supports_keywords=True if query is None else query.supports_keywords,

@@ -369,8 +369,8 @@ MANIFEST = SourceManifest(
         table_name="data_hub_records",
         required_record_fields=(
             "source",
-            "channel_key",
-            "record_type",
+            "content_key",
+            "content_type",
             "external_id",
             "title",
             "url",
@@ -378,7 +378,6 @@ MANIFEST = SourceManifest(
             "published_at",
             "fetched_at",
             "raw_payload",
-            "dedup_key",
             "content_ref",
         ),
     ),

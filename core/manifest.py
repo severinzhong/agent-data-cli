@@ -234,11 +234,11 @@ class InteractionVerbSpec:
 class StorageSpec:
     table_name: str
     required_record_fields: tuple[str, ...]
-    unique_key_fields: tuple[str, ...] = ("source", "dedup_key")
+    unique_key_fields: tuple[str, ...] = ("source", "content_key")
 
     def __post_init__(self) -> None:
         _require_identifier(self.table_name, "storage table name")
-        required_minimum = {"source", "channel_key", "title", "url", "fetched_at", "raw_payload", "dedup_key"}
+        required_minimum = {"source", "content_key", "content_type", "title", "url", "fetched_at", "raw_payload"}
         missing = sorted(required_minimum - set(self.required_record_fields))
         if missing:
             raise ValueError(f"storage.required_record_fields missing: {', '.join(missing)}")

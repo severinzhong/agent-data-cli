@@ -83,7 +83,6 @@ class SourceDescriptor:
 @dataclass(frozen=True, slots=True)
 class SourceStorageSpec:
     source: str
-    table_name: str
     required_record_fields: tuple[str, ...]
     time_field: str | None
     supports_keywords: bool

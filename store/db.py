@@ -19,7 +19,7 @@ from . import configs as config_store
 from . import content as content_store
 from . import groups as group_store
 from . import health as health_store
-from .migrations import SCHEMA, build_content_table_schema
+from .migrations import SCHEMA
 from . import subscriptions as subscription_store
 
 
@@ -35,22 +35,13 @@ class Store:
             self.set_storage_specs(storage_specs)
         with self._connect() as connection:
             connection.executescript(SCHEMA)
-            for spec in self._storage_specs.values():
-                connection.executescript(build_content_table_schema(spec.table_name))
-                content_store.ensure_content_table_columns(connection, spec.table_name)
 
     def set_storage_specs(self, storage_specs: list[SourceStorageSpec]) -> None:
         specs_by_source: dict[str, SourceStorageSpec] = {}
-        table_names: set[str] = set()
         for spec in storage_specs:
             if spec.source in specs_by_source:
                 raise RuntimeError(f"duplicate storage spec for source: {spec.source}")
-            if not self._is_valid_identifier(spec.table_name):
-                raise RuntimeError(f"invalid storage table name: {spec.table_name}")
-            if spec.table_name in table_names:
-                raise RuntimeError(f"duplicate storage table name: {spec.table_name}")
             specs_by_source[spec.source] = spec
-            table_names.add(spec.table_name)
         self._storage_specs = specs_by_source
 
     def upsert_source(self, source: SourceDescriptor) -> None:
