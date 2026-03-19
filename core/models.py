@@ -111,6 +111,56 @@ class SubscriptionRecord:
 
 
 @dataclass(slots=True)
+class ContentNode:
+    source: str
+    content_key: str
+    content_type: str
+    external_id: str
+    title: str
+    url: str
+    snippet: str
+    author: str | None
+    published_at: str | None
+    fetched_at: str | None
+    raw_payload: str
+    content_ref: str | None = None
+
+
+@dataclass(slots=True)
+class ContentChannelLink:
+    source: str
+    channel_key: str
+    content_key: str
+    membership_kind: str
+    linked_at: str | None = None
+
+
+@dataclass(slots=True)
+class ContentRelation:
+    source: str
+    from_content_key: str
+    relation_type: str
+    to_content_key: str
+    position: int | None = None
+    metadata_json: str = "{}"
+
+
+@dataclass(slots=True)
+class ContentSyncBatch:
+    nodes: list[ContentNode]
+    channel_links: list[ContentChannelLink]
+    relations: list[ContentRelation]
+
+
+@dataclass(frozen=True, slots=True)
+class ContentBatchWriteResult:
+    saved_nodes: int
+    skipped_nodes: int
+    saved_links: int
+    saved_relations: int
+
+
+@dataclass(slots=True)
 class ContentRecord:
     source: str
     channel_key: str

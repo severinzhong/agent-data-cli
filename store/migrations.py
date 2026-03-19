@@ -91,6 +91,60 @@ CREATE TABLE IF NOT EXISTS action_audits (
     error TEXT,
     dry_run INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS content_nodes (
+    node_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    content_key TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    snippet TEXT NOT NULL,
+    author TEXT,
+    published_at TEXT,
+    fetched_at TEXT NOT NULL,
+    raw_payload TEXT NOT NULL,
+    content_ref TEXT,
+    UNIQUE (source, content_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_nodes_source_time
+ON content_nodes(source, published_at DESC, node_id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_content_nodes_source_type_time
+ON content_nodes(source, content_type, published_at DESC, node_id DESC);
+
+CREATE TABLE IF NOT EXISTS content_channel_links (
+    source TEXT NOT NULL,
+    channel_key TEXT NOT NULL,
+    content_key TEXT NOT NULL,
+    membership_kind TEXT NOT NULL,
+    linked_at TEXT NOT NULL,
+    PRIMARY KEY (source, channel_key, content_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_channel_links_source_channel
+ON content_channel_links(source, channel_key, membership_kind);
+
+CREATE INDEX IF NOT EXISTS idx_content_channel_links_source_content
+ON content_channel_links(source, content_key);
+
+CREATE TABLE IF NOT EXISTS content_relations (
+    source TEXT NOT NULL,
+    from_content_key TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    to_content_key TEXT NOT NULL,
+    position INTEGER,
+    metadata_json TEXT NOT NULL,
+    PRIMARY KEY (source, from_content_key, relation_type, to_content_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_relations_source_parent
+ON content_relations(source, to_content_key, relation_type, position);
+
+CREATE INDEX IF NOT EXISTS idx_content_relations_source_child
+ON content_relations(source, from_content_key, relation_type, position);
 """
 
 

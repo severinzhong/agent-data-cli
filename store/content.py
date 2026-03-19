@@ -2,10 +2,36 @@ from __future__ import annotations
 
 import sqlite3
 
-from core.models import ContentRecord, SourceStorageSpec
+from core.models import (
+    ContentBatchWriteResult,
+    ContentChannelLink,
+    ContentNode,
+    ContentRecord,
+    ContentRelation,
+    ContentSyncBatch,
+    SourceStorageSpec,
+)
 from utils.time import utc_now_iso
 
 from .repositories import row_to_content
+
+
+def write_content_batch(
+    connection: sqlite3.Connection,
+    source: str,
+    channel_key: str,
+    batch: ContentSyncBatch,
+) -> ContentBatchWriteResult:
+    _validate_batch(connection, source=source, channel_key=channel_key, batch=batch)
+    saved_nodes = sum(_upsert_content_node(connection, node) for node in batch.nodes)
+    saved_links = sum(_upsert_content_channel_link(connection, link) for link in batch.channel_links)
+    saved_relations = sum(_upsert_content_relation(connection, relation) for relation in batch.relations)
+    return ContentBatchWriteResult(
+        saved_nodes=saved_nodes,
+        skipped_nodes=len(batch.nodes) - saved_nodes,
+        saved_links=saved_links,
+        saved_relations=saved_relations,
+    )
 
 
 def upsert_content(connection: sqlite3.Connection, table_name: str, record: ContentRecord) -> bool:
@@ -308,3 +334,162 @@ def _require_storage_spec(storage_specs: dict[str, SourceStorageSpec], source: s
         return storage_specs[source]
     except KeyError as exc:
         raise RuntimeError(f"no storage spec registered for source: {source}") from exc
+
+
+def _upsert_content_node(connection: sqlite3.Connection, node: ContentNode) -> int:
+    fetched_at = node.fetched_at or utc_now_iso()
+    cursor = connection.execute(
+        """
+        INSERT OR IGNORE INTO content_nodes (
+            source,
+            content_key,
+            content_type,
+            external_id,
+            title,
+            url,
+            snippet,
+            author,
+            published_at,
+            fetched_at,
+            raw_payload,
+            content_ref
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            node.source,
+            node.content_key,
+            node.content_type,
+            node.external_id,
+            node.title,
+            node.url,
+            node.snippet,
+            node.author,
+            node.published_at,
+            fetched_at,
+            node.raw_payload,
+            node.content_ref,
+        ),
+    )
+    return cursor.rowcount
+
+
+def _upsert_content_channel_link(connection: sqlite3.Connection, link: ContentChannelLink) -> int:
+    cursor = connection.execute(
+        """
+        INSERT OR IGNORE INTO content_channel_links (
+            source,
+            channel_key,
+            content_key,
+            membership_kind,
+            linked_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            link.source,
+            link.channel_key,
+            link.content_key,
+            link.membership_kind,
+            link.linked_at or utc_now_iso(),
+        ),
+    )
+    return cursor.rowcount
+
+
+def _upsert_content_relation(connection: sqlite3.Connection, relation: ContentRelation) -> int:
+    cursor = connection.execute(
+        """
+        INSERT OR IGNORE INTO content_relations (
+            source,
+            from_content_key,
+            relation_type,
+            to_content_key,
+            position,
+            metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            relation.source,
+            relation.from_content_key,
+            relation.relation_type,
+            relation.to_content_key,
+            relation.position,
+            relation.metadata_json,
+        ),
+    )
+    return cursor.rowcount
+
+
+def _validate_batch(
+    connection: sqlite3.Connection,
+    *,
+    source: str,
+    channel_key: str,
+    batch: ContentSyncBatch,
+) -> None:
+    batch_keys = {node.content_key for node in batch.nodes}
+    _validate_node_sources(source, batch.nodes)
+    _validate_link_sources(source, channel_key, batch.channel_links, batch_keys, connection)
+    _validate_relation_sources(source, batch.relations, batch_keys, connection)
+
+
+def _validate_node_sources(source: str, nodes: list[ContentNode]) -> None:
+    for node in nodes:
+        if node.source != source:
+            raise RuntimeError(f"content node source mismatch: expected {source}, got {node.source}")
+
+
+def _validate_link_sources(
+    source: str,
+    channel_key: str,
+    links: list[ContentChannelLink],
+    batch_keys: set[str],
+    connection: sqlite3.Connection,
+) -> None:
+    for link in links:
+        if link.source != source:
+            raise RuntimeError(f"content channel link source mismatch: expected {source}, got {link.source}")
+        if link.channel_key != channel_key:
+            raise RuntimeError(f"content channel link channel mismatch: expected {channel_key}, got {link.channel_key}")
+        if not _content_key_exists(connection, source, link.content_key, batch_keys):
+            raise RuntimeError(f"content channel link references missing content node: {link.content_key}")
+
+
+def _validate_relation_sources(
+    source: str,
+    relations: list[ContentRelation],
+    batch_keys: set[str],
+    connection: sqlite3.Connection,
+) -> None:
+    for relation in relations:
+        if relation.source != source:
+            raise RuntimeError(f"content relation source mismatch: expected {source}, got {relation.source}")
+        if relation.relation_type != "reply_to":
+            raise RuntimeError(f"unsupported content relation type: {relation.relation_type}")
+        if relation.from_content_key == relation.to_content_key:
+            raise RuntimeError(f"content relation cannot self-reference: {relation.from_content_key}")
+        if not _content_key_exists(connection, source, relation.from_content_key, batch_keys):
+            raise RuntimeError(f"content relation references missing content node: {relation.from_content_key}")
+        if not _content_key_exists(connection, source, relation.to_content_key, batch_keys):
+            raise RuntimeError(f"content relation references missing content node: {relation.to_content_key}")
+
+
+def _content_key_exists(
+    connection: sqlite3.Connection,
+    source: str,
+    content_key: str,
+    batch_keys: set[str],
+) -> bool:
+    if content_key in batch_keys:
+        return True
+    row = connection.execute(
+        """
+        SELECT 1
+        FROM content_nodes
+        WHERE source = ? AND content_key = ?
+        """,
+        (source, content_key),
+    ).fetchone()
+    return row is not None

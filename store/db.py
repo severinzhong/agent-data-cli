@@ -6,6 +6,8 @@ import sqlite3
 from core.models import (
     ActionAuditRecord,
     ChannelRecord,
+    ContentBatchWriteResult,
+    ContentSyncBatch,
     ContentRecord,
     HealthRecord,
     SourceDescriptor,
@@ -178,6 +180,20 @@ class Store:
         table_name = self._table_for_source(record.source)
         with self._connect() as connection:
             return content_store.upsert_content(connection, table_name, record)
+
+    def write_content_batch(
+        self,
+        source: str,
+        channel_key: str,
+        batch: ContentSyncBatch,
+    ) -> ContentBatchWriteResult:
+        with self._connect() as connection:
+            return content_store.write_content_batch(
+                connection,
+                source=source,
+                channel_key=channel_key,
+                batch=batch,
+            )
 
     def insert_action_audit(self, record: ActionAuditRecord) -> None:
         with self._connect() as connection:
