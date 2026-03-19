@@ -24,7 +24,10 @@ from core.manifest import (
 )
 from core.models import (
     ChannelRecord,
+    ContentChannelLink,
+    ContentNode,
     ContentRecord,
+    ContentSyncBatch,
     HealthRecord,
     InteractionResult,
     QueryColumnSpec,
@@ -127,14 +130,27 @@ class DataHubSource(BaseSource):
         since: datetime | None = None,
         limit: int | None = 20,
         fetch_all: bool = False,
-    ) -> list[ContentRecord]:
+    ) -> ContentSyncBatch:
         _ = since
         if channel_key != OFFICIAL_CHANNEL:
             raise RuntimeError(f"{self.name} only supports channel: {OFFICIAL_CHANNEL}")
         entries = self._load_index()
         if not fetch_all and limit is not None and limit >= 0:
             entries = entries[:limit]
-        return [self._content_record_from_entry(entry) for entry in entries]
+        nodes = [self._content_node_from_entry(entry) for entry in entries]
+        return ContentSyncBatch(
+            nodes=nodes,
+            channel_links=[
+                ContentChannelLink(
+                    source=self.name,
+                    channel_key=OFFICIAL_CHANNEL,
+                    content_key=node.content_key,
+                    membership_kind="direct",
+                )
+                for node in nodes
+            ],
+            relations=[],
+        )
 
     def parse_content_ref(self, ref: str) -> str:
         parsed = parse_content_ref(ref)
@@ -182,7 +198,7 @@ class DataHubSource(BaseSource):
             content_ref=build_content_ref(self.name, entry.source_name),
         )
 
-    def _content_record_from_entry(self, entry: CatalogEntry) -> ContentRecord:
+    def _content_node_from_entry(self, entry: CatalogEntry) -> ContentNode:
         payload = {
             "source_name": entry.source_name,
             "display_name": entry.display_name,
@@ -195,10 +211,10 @@ class DataHubSource(BaseSource):
             "init_script": entry.init_script,
             "capabilities": list(entry.capabilities),
         }
-        return ContentRecord(
+        return ContentNode(
             source=self.name,
-            channel_key=OFFICIAL_CHANNEL,
-            record_type="source_index",
+            content_key=f"source:{entry.source_name}",
+            content_type="source_index",
             external_id=entry.source_name,
             title=entry.display_name,
             url=entry.repo_url,
@@ -207,7 +223,6 @@ class DataHubSource(BaseSource):
             published_at=utc_now_iso(),
             fetched_at=utc_now_iso(),
             raw_payload=json.dumps(payload, ensure_ascii=False),
-            dedup_key=f"{self.name}:{entry.source_name}:{entry.version}",
             content_ref=build_content_ref(self.name, entry.source_name),
         )
 
