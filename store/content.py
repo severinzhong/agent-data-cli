@@ -37,43 +37,40 @@ def write_content_batch(
 
 
 def upsert_content(connection: sqlite3.Connection, table_name: str, record: ContentRecord) -> bool:
-    fetched_at = record.fetched_at or utc_now_iso()
-    cursor = connection.execute(
-        f"""
-        INSERT OR IGNORE INTO {table_name} (
-            source,
-            channel_key,
-            record_type,
-            external_id,
-            title,
-            url,
-            snippet,
-            author,
-            published_at,
-            fetched_at,
-            raw_payload,
-            dedup_key,
-            content_ref
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            record.source,
-            record.channel_key,
-            record.record_type,
-            record.external_id,
-            record.title,
-            record.url,
-            record.snippet,
-            record.author,
-            record.published_at,
-            fetched_at,
-            record.raw_payload,
-            record.dedup_key,
-            record.content_ref,
+    _ = table_name
+    result = write_content_batch(
+        connection,
+        source=record.source,
+        channel_key=record.channel_key,
+        batch=ContentSyncBatch(
+            nodes=[
+                ContentNode(
+                    source=record.source,
+                    content_key=record.dedup_key,
+                    content_type=record.record_type or "content",
+                    external_id=record.external_id,
+                    title=record.title,
+                    url=record.url,
+                    snippet=record.snippet,
+                    author=record.author,
+                    published_at=record.published_at,
+                    fetched_at=record.fetched_at,
+                    raw_payload=record.raw_payload,
+                    content_ref=record.content_ref,
+                )
+            ],
+            channel_links=[
+                ContentChannelLink(
+                    source=record.source,
+                    channel_key=record.channel_key,
+                    content_key=record.dedup_key,
+                    membership_kind="direct",
+                )
+            ],
+            relations=[],
         ),
     )
-    return cursor.rowcount == 1
+    return result.saved_nodes == 1
 
 
 def set_sync_state(connection: sqlite3.Connection, source: str, channel_key: str, cursor: str) -> None:
@@ -100,38 +97,42 @@ def list_content(
     since: str | None = None,
     fetch_all: bool = False,
 ) -> list[ContentRecord]:
+    _ = table_name
     query = [
-        f"""
+        """
         SELECT
-            source,
-            channel_key,
-            record_type,
-            external_id,
-            title,
-            url,
-            snippet,
-            author,
-            published_at,
-            fetched_at,
-            raw_payload,
-            dedup_key,
-            content_ref
-        FROM {table_name}
-        WHERE source = ? AND channel_key = ?
+            n.source,
+            ? AS channel_key,
+            n.content_type AS record_type,
+            n.external_id,
+            n.title,
+            n.url,
+            n.snippet,
+            n.author,
+            n.published_at,
+            n.fetched_at,
+            n.raw_payload,
+            n.content_key AS dedup_key,
+            n.content_ref
+        FROM content_nodes AS n
+        JOIN content_channel_links AS l
+          ON l.source = n.source
+         AND l.content_key = n.content_key
+        WHERE n.source = ? AND l.channel_key = ?
         """
     ]
-    params: list[str | int] = [source, channel_key]
+    params: list[str | int] = [channel_key, source, channel_key]
 
     if record_type is not None:
-        query.append("AND record_type = ?")
+        query.append("AND n.content_type = ?")
         params.append(record_type)
 
     if since is not None:
         normalized_since = _normalize_since_value(since)
-        query.append("AND julianday(published_at) >= julianday(?)")
+        query.append("AND julianday(n.published_at) >= julianday(?)")
         params.append(normalized_since)
 
-    query.append("ORDER BY published_at DESC, record_id DESC")
+    query.append("ORDER BY n.published_at DESC, n.node_id DESC")
 
     if not fetch_all and limit >= 0:
         query.append("LIMIT ?")

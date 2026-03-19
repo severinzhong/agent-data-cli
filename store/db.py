@@ -179,9 +179,8 @@ class Store:
             return subscription_store.is_subscribed(connection, source, channel_key)
 
     def upsert_content(self, record: ContentRecord) -> bool:
-        table_name = self._table_for_source(record.source)
         with self._connect() as connection:
-            return content_store.upsert_content(connection, table_name, record)
+            return content_store.upsert_content(connection, "", record)
 
     def write_content_batch(
         self,
@@ -223,11 +222,10 @@ class Store:
         since: str | None = None,
         fetch_all: bool = False,
     ) -> list[ContentRecord]:
-        table_name = self._table_for_source(source)
         with self._connect() as connection:
             return content_store.list_content(
                 connection,
-                table_name=table_name,
+                table_name="",
                 source=source,
                 channel_key=channel_key,
                 record_type=record_type,
