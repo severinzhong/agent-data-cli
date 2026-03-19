@@ -106,6 +106,7 @@ uv run -m adc content interact --source data_hub --verb install --ref data_hub:c
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
 | `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `avwiki` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `data_hub` | ❌ | ✅ | ✅ | ✅ | ✅ |
@@ -115,6 +116,12 @@ uv run -m adc content interact --source data_hub --verb install --ref data_hub:c
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+示例：
+
+```bash
+uv run -m adc content search --source avwiki --query SSIS-001 --limit 5
+```
 
 ## Thanks
 

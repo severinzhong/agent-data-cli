@@ -105,6 +105,7 @@ These sources are currently provided through [`agent-data-hub`](https://github.c
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
 | `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `avwiki` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `data_hub` | ❌ | ✅ | ✅ | ✅ | ✅ |
@@ -114,6 +115,12 @@ These sources are currently provided through [`agent-data-hub`](https://github.c
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Example:
+
+```bash
+uv run -m adc content search --source avwiki --query SSIS-001 --limit 5
+```
 
 ## Thanks 
 
