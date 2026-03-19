@@ -59,7 +59,7 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 
 - `source`: a concrete data source implementation and a capability boundary, such as a news site, a market data provider, or a social media platform.
 - `channel`: a trackable target inside a source. A channel can be a feed, a stock symbol, or an RSSHub route. You can discover channels, subscribe or unsubscribe them, add them to groups, and run `content update` on subscribed channels. Examples include BBC's `world`, A-share symbol `sh600001`, and RSSHub route `/youtube/channel/<id>`.
-- `content`: a remote search result or a local record written after sync. You use `content search` for remote discovery, `content query` for local reads, and `content update` to sync remote content from subscribed channels into the local store. If a source later declares interaction verbs, you can also use `content interact` to run explicit remote actions on individual content items.
+- `content`: a remote search result or a local content node written after sync. Posts, comments, and nested replies all normalize into `content nodes`; `channel` remains a subscription and sync boundary, not a third resource level. You use `content search` for remote discovery, `content query` for local reads, and `content update` to sync remote content from subscribed channels into the local store. If a source later declares interaction verbs, you can also use `content interact` to run explicit remote actions on individual content items.
 
 ## Source Workspace
 
@@ -229,7 +229,15 @@ The shared store layer persists:
 - source configs
 - cli configs
 - action audits
-- per-source content tables such as `data_hub_records` and any installed source table
+- `content_nodes`
+- `content_channel_links`
+- `content_relations`
+
+Where:
+
+- `content_nodes` stores the content node itself
+- `content_channel_links` stores which channels brought each node into the local store
+- `content_relations` stores structural relationships between content nodes; the built-in relation type is currently `reply_to`
 
 ## Project Layout
 

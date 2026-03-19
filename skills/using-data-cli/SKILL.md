@@ -150,8 +150,8 @@ For machine filtering, prefer `--jsonl` and pipe to shell tools:
 
 ```bash
 uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq '.title'
-uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq 'select(.channel_key=="BTC")'
-uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | awk -F'"' '/"channel_key": "BTC"/ {print $0}'
+uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq 'select(.channel=="BTC")'
+uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | awk -F'"' '/"channel": "BTC"/ {print $0}'
 ```
 
 The same pattern works for remote discovery:

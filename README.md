@@ -59,7 +59,7 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 
 - `source`：一种具体的数据源实现，也是能力边界，比如一个新闻站点、一个股市数据源，或一个社交媒体平台。
 - `channel`：source 内部一个可跟踪目标，可以是一条 feed、一个股票代码、一个 RSSHub 路由。你可以发现 channel、订阅或取消订阅、加入 group，并对已订阅的 channel 执行 `content update`。例如 `bbc` 的 `world`、`ashare` 的 `sh600001`、`rsshub` 的 `/youtube/channel/<id>`。
-- `content`：一次远端搜索结果，或一次同步后写入本地的内容记录。你可以用 `content search` 做远端发现，用 `content query` 读取本地库，用 `content update` 把已订阅 channel 的远端内容同步到本地；如果某个 source 以后声明了交互动词，还可以通过 `content interact` 对单条内容执行显式远端操作。
+- `content`：一次远端搜索结果，或一次同步后写入本地的内容节点。帖子、评论、楼中楼回复都统一落成 `content node`；`channel` 仍然只是订阅和同步入口，不是第三层资源。你可以用 `content search` 做远端发现，用 `content query` 读取本地库，用 `content update` 把已订阅 channel 的远端内容同步到本地；如果某个 source 以后声明了交互动词，还可以通过 `content interact` 对单条内容执行显式远端操作。
 
 
 ## Source Workspace
@@ -230,7 +230,15 @@ agent-data-cli.db
 - source configs
 - cli configs
 - action audits
-- 各 source 的内容表，例如 `data_hub_records` 以及任意已安装 source 的内容表
+- `content_nodes`
+- `content_channel_links`
+- `content_relations`
+
+其中：
+
+- `content_nodes` 保存内容节点本体
+- `content_channel_links` 保存内容节点通过哪些 channel 被同步进本地库
+- `content_relations` 保存内容节点之间的结构关系；当前内置关系类型是 `reply_to`
 
 ## 项目结构
 
