@@ -237,7 +237,7 @@ Where:
 
 - `content_nodes` stores the content node itself
 - `content_channel_links` stores which channels brought each node into the local store
-- `content_relations` stores structural relationships between content nodes; the built-in relation type is currently `reply_to`
+- `content_relations` stores structural relationships between content nodes; the current built-in abstract relation type in core is `parent`
 
 ## Project Layout
 

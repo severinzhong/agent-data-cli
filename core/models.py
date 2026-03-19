@@ -141,6 +141,7 @@ class ContentRelation:
     from_content_key: str
     relation_type: str
     to_content_key: str
+    relation_semantic: str | None = None
     position: int | None = None
     metadata_json: str = "{}"
 

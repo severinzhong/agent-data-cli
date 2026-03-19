@@ -238,7 +238,7 @@ agent-data-cli.db
 
 - `content_nodes` 保存内容节点本体
 - `content_channel_links` 保存内容节点通过哪些 channel 被同步进本地库
-- `content_relations` 保存内容节点之间的结构关系；当前内置关系类型是 `reply_to`
+- `content_relations` 保存内容节点之间的结构关系；core 当前内置的抽象关系类型是 `parent`
 
 ## 项目结构
 

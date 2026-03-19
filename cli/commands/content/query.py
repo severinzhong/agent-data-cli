@@ -64,7 +64,7 @@ CONTENT_QUERY_COMMAND = CommandNodeSpec(
             lines=[
                 "--keywords is only a local filter and does not trigger remote search",
                 "--group only filters local records and does not trigger remote expansion",
-                "--parent filters direct reply_to children of one local content node",
+                "--parent filters direct children of one local content node",
                 "Default limit is 20; --since does not imply --all",
             ],
         ),

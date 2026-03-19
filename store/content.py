@@ -249,7 +249,7 @@ def query_source_content(
                 FROM content_relations AS r
                 WHERE r.source = n.source
                   AND r.from_content_key = n.content_key
-                  AND r.relation_type = 'reply_to'
+                  AND r.relation_type = 'parent'
                   AND r.to_content_key = ?
             )
             """
@@ -442,16 +442,18 @@ def _upsert_content_relation(connection: sqlite3.Connection, relation: ContentRe
             from_content_key,
             relation_type,
             to_content_key,
+            relation_semantic,
             position,
             metadata_json
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
             relation.source,
             relation.from_content_key,
             relation.relation_type,
             relation.to_content_key,
+            relation.relation_semantic,
             relation.position,
             relation.metadata_json,
         ),
@@ -503,7 +505,7 @@ def _validate_relation_sources(
     for relation in relations:
         if relation.source != source:
             raise RuntimeError(f"content relation source mismatch: expected {source}, got {relation.source}")
-        if relation.relation_type != "reply_to":
+        if relation.relation_type != "parent":
             raise RuntimeError(f"unsupported content relation type: {relation.relation_type}")
         if relation.from_content_key == relation.to_content_key:
             raise RuntimeError(f"content relation cannot self-reference: {relation.from_content_key}")

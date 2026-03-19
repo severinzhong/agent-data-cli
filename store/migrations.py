@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS content_relations (
     from_content_key TEXT NOT NULL,
     relation_type TEXT NOT NULL,
     to_content_key TEXT NOT NULL,
+    relation_semantic TEXT,
     position INTEGER,
     metadata_json TEXT NOT NULL,
     PRIMARY KEY (source, from_content_key, relation_type, to_content_key)
