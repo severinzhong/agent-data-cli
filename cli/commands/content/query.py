@@ -12,6 +12,8 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
     _ = extras
     if args.channel is not None and args.source is None:
         raise RuntimeError("--channel requires --source")
+    if args.parent is not None and args.source is None:
+        raise RuntimeError("--parent requires --source")
     if args.channel is not None and args.group is not None:
         raise RuntimeError("content query does not allow --channel with --group")
     if args.source is not None and args.group is not None:
@@ -35,6 +37,8 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
         source=args.source,
         channel_key=args.channel,
         group_name=args.group,
+        record_type=args.content_type,
+        parent_ref=args.parent,
         since=None if since is None else since_datetime_to_iso(since),
         keywords=args.keywords,
         limit=-1 if limit is None else limit,
@@ -60,6 +64,7 @@ CONTENT_QUERY_COMMAND = CommandNodeSpec(
             lines=[
                 "--keywords is only a local filter and does not trigger remote search",
                 "--group only filters local records and does not trigger remote expansion",
+                "--parent filters direct reply_to children of one local content node",
                 "Default limit is 20; --since does not imply --all",
             ],
         ),
@@ -76,6 +81,8 @@ CONTENT_QUERY_COMMAND = CommandNodeSpec(
         CommandArgSpec(names=("--channel",), value_name="channel"),
         CommandArgSpec(names=("--group",), value_name="group"),
         CommandArgSpec(names=("--keywords",), value_name="keywords"),
+        CommandArgSpec(names=("--content-type",), value_name="content_type"),
+        CommandArgSpec(names=("--parent",), value_name="content_ref"),
         CommandArgSpec(names=("--since",), value_name="since"),
         CommandArgSpec(names=("--limit",), value_name="n", type=int),
         CommandArgSpec(names=("--all",), action="store_true", dest="fetch_all"),
