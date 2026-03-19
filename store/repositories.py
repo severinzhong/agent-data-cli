@@ -6,6 +6,7 @@ import sqlite3
 from core.config import SourceConfigEntry
 from core.models import (
     ChannelRecord,
+    ContentNode,
     ContentRecord,
     GroupMemberRecord,
     GroupRecord,
@@ -54,6 +55,23 @@ def row_to_content(row: sqlite3.Row) -> ContentRecord:
         fetched_at=row["fetched_at"],
         raw_payload=row["raw_payload"],
         dedup_key=row["dedup_key"],
+        content_ref=row["content_ref"] if "content_ref" in row.keys() else None,
+    )
+
+
+def row_to_content_node(row: sqlite3.Row) -> ContentNode:
+    return ContentNode(
+        source=row["source"],
+        content_key=row["content_key"],
+        content_type=row["content_type"],
+        external_id=row["external_id"],
+        title=row["title"],
+        url=row["url"],
+        snippet=row["snippet"],
+        author=row["author"],
+        published_at=row["published_at"],
+        fetched_at=row["fetched_at"],
+        raw_payload=row["raw_payload"],
         content_ref=row["content_ref"] if "content_ref" in row.keys() else None,
     )
 

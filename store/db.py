@@ -8,6 +8,7 @@ from core.models import (
     ChannelRecord,
     ContentBatchWriteResult,
     ContentSyncBatch,
+    ContentNode,
     ContentRecord,
     HealthRecord,
     SourceDescriptor,
@@ -241,11 +242,12 @@ class Store:
         channel_key: str | None = None,
         group_name: str | None = None,
         record_type: str | None = None,
+        parent_ref: str | None = None,
         since: str | None = None,
         keywords: str | None = None,
         limit: int = 10,
         fetch_all: bool = False,
-    ) -> list[ContentRecord]:
+    ) -> list[ContentNode]:
         with self._connect() as connection:
             return content_store.query_content(
                 connection,
@@ -254,6 +256,7 @@ class Store:
                 channel_key=channel_key,
                 group_name=group_name,
                 record_type=record_type,
+                parent_ref=parent_ref,
                 since=since,
                 keywords=keywords,
                 limit=limit,

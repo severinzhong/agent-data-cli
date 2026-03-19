@@ -10,10 +10,11 @@ from core.models import (
     ContentRelation,
     ContentSyncBatch,
     SourceStorageSpec,
+    parse_content_ref,
 )
 from utils.time import utc_now_iso
 
-from .repositories import row_to_content
+from .repositories import row_to_content, row_to_content_node
 
 
 def write_content_batch(
@@ -147,11 +148,12 @@ def query_content(
     channel_key: str | None = None,
     group_name: str | None = None,
     record_type: str | None = None,
+    parent_ref: str | None = None,
     since: str | None = None,
     keywords: str | None = None,
     limit: int = 10,
     fetch_all: bool = False,
-) -> list[ContentRecord]:
+) -> list[ContentNode]:
     targets = resolve_query_targets(
         connection,
         storage_specs=storage_specs,
@@ -161,25 +163,27 @@ def query_content(
     )
     if not targets:
         return []
-    all_records: list[ContentRecord] = []
+    parent_source, parent_content_key = _resolve_parent_ref(parent_ref)
+    if parent_source is not None and source is not None and parent_source != source:
+        raise RuntimeError(f"parent_ref source mismatch: expected {source}, got {parent_source}")
+    all_records: list[ContentNode] = []
     for source_name, channel_filter in targets.items():
-        table_name = storage_specs[source_name].table_name
         all_records.extend(
             query_source_content(
                 connection,
-                table_name=table_name,
                 source=source_name,
                 channel_filter=channel_filter,
                 record_type=record_type,
+                parent_content_key=parent_content_key if parent_source in (None, source_name) else None,
                 since=since,
                 keywords=keywords,
             )
         )
     all_records.sort(
-        key=lambda record: (
-            record.published_at or "",
-            record.fetched_at or "",
-            record.dedup_key,
+        key=lambda node: (
+            node.published_at or "",
+            node.fetched_at or "",
+            node.content_key,
         ),
         reverse=True,
     )
@@ -191,31 +195,30 @@ def query_content(
 def query_source_content(
     connection: sqlite3.Connection,
     *,
-    table_name: str,
     source: str,
     channel_filter: set[str] | None,
     record_type: str | None,
+    parent_content_key: str | None,
     since: str | None,
     keywords: str | None,
-) -> list[ContentRecord]:
+) -> list[ContentNode]:
     query = [
-        f"""
+        """
         SELECT
-            source,
-            channel_key,
-            record_type,
-            external_id,
-            title,
-            url,
-            snippet,
-            author,
-            published_at,
-            fetched_at,
-            raw_payload,
-            dedup_key,
-            content_ref
-        FROM {table_name}
-        WHERE source = ?
+            n.source,
+            n.content_key,
+            n.content_type,
+            n.external_id,
+            n.title,
+            n.url,
+            n.snippet,
+            n.author,
+            n.published_at,
+            n.fetched_at,
+            n.raw_payload,
+            n.content_ref
+        FROM content_nodes AS n
+        WHERE n.source = ?
         """
     ]
     params: list[str | int] = [source]
@@ -223,31 +226,55 @@ def query_source_content(
         if not channel_filter:
             return []
         placeholders = ", ".join("?" for _ in channel_filter)
-        query.append(f"AND channel_key IN ({placeholders})")
+        query.append(
+            f"""
+            AND EXISTS (
+                SELECT 1
+                FROM content_channel_links AS l
+                WHERE l.source = n.source
+                  AND l.content_key = n.content_key
+                  AND l.channel_key IN ({placeholders})
+            )
+            """
+        )
         params.extend(sorted(channel_filter))
     if record_type is not None:
-        query.append("AND record_type = ?")
+        query.append("AND n.content_type = ?")
         params.append(record_type)
+    if parent_content_key is not None:
+        query.append(
+            """
+            AND EXISTS (
+                SELECT 1
+                FROM content_relations AS r
+                WHERE r.source = n.source
+                  AND r.from_content_key = n.content_key
+                  AND r.relation_type = 'reply_to'
+                  AND r.to_content_key = ?
+            )
+            """
+        )
+        params.append(parent_content_key)
     if since is not None:
         normalized_since = _normalize_since_value(since)
-        query.append("AND julianday(published_at) >= julianday(?)")
+        query.append("AND julianday(n.published_at) >= julianday(?)")
         params.append(normalized_since)
     if keywords is not None:
         keyword = f"%{keywords}%"
         query.append(
             """
             AND (
-                title LIKE ?
-                OR snippet LIKE ?
-                OR url LIKE ?
-                OR channel_key LIKE ?
+                n.title LIKE ?
+                OR n.snippet LIKE ?
+                OR n.url LIKE ?
+                OR n.content_key LIKE ?
             )
             """
         )
         params.extend([keyword, keyword, keyword, keyword])
-    query.append("ORDER BY published_at DESC, record_id DESC")
+    query.append("ORDER BY n.published_at DESC, n.node_id DESC")
     rows = connection.execute(" ".join(query), params).fetchall()
-    return [row_to_content(row) for row in rows]
+    return [row_to_content_node(row) for row in rows]
 
 
 def resolve_query_targets(
@@ -334,6 +361,16 @@ def _require_storage_spec(storage_specs: dict[str, SourceStorageSpec], source: s
         return storage_specs[source]
     except KeyError as exc:
         raise RuntimeError(f"no storage spec registered for source: {source}") from exc
+
+
+def _resolve_parent_ref(parent_ref: str | None) -> tuple[str | None, str | None]:
+    if parent_ref is None:
+        return None, None
+    try:
+        parsed = parse_content_ref(parent_ref)
+    except ValueError as exc:
+        raise RuntimeError(f"invalid parent_ref: {parent_ref}") from exc
+    return parsed.source, parsed.opaque_id
 
 
 def _upsert_content_node(connection: sqlite3.Connection, node: ContentNode) -> int:
