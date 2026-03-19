@@ -20,12 +20,16 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
         raise RuntimeError("content query does not allow --parent with --children")
     if args.depth is not None and args.parent is None and args.children is None:
         raise RuntimeError("--depth requires --parent or --children")
+    if (args.parent is not None or args.children is not None) and args.channel is not None:
+        raise RuntimeError("content query does not allow --parent or --children with --channel")
     if args.channel is not None and args.group is not None:
         raise RuntimeError("content query does not allow --channel with --group")
     if args.source is not None and args.group is not None:
         raise RuntimeError("content query does not allow --source with --group")
     if args.fetch_all and args.limit is not None:
         raise RuntimeError("content query does not allow --all with --limit")
+    if args.depth is not None and args.depth != -1 and args.depth <= 0:
+        raise RuntimeError("--depth must be a positive integer or -1")
     since = parse_since(args.since) if args.since is not None else None
     target_sources = resolve_query_sources(ctx.registry, ctx.store, source=args.source, group=args.group)
     if args.keywords is not None:
