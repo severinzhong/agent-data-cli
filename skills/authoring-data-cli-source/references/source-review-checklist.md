@@ -22,8 +22,10 @@ Use this checklist before completion.
 
 ## Persistence
 
-- Does the source return normalized records without doing its own persistence?
-- Is dedup based on stable fields?
+- Does the source return normalized `ContentSyncBatch` data without doing its own persistence?
+- Is `content_key` based on stable identity fields?
+- If the source has container or hierarchy structure, does it use shared `content_relations` instead of source-private storage?
+- If the source needs relation meaning, is it carried by `relation_semantic` instead of a core-specific relation type?
 - Is sync state updated only through the shared store path?
 
 ## Implementation shape

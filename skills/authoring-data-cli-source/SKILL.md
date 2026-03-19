@@ -13,6 +13,13 @@ This skill is deliberately stricter than normal feature work because a weak sour
 
 It is the source-authoring path for RSS feeds, HTTP APIs, HTML scraping, browser-driven sites, finance data, news content, and other remote content systems that must fit the `source/channel/content` model.
 
+Current core contract to keep in mind:
+
+- `source/channel` is still the only core resource model
+- `content update` sources return `ContentSyncBatch`, not flat per-row persistence instructions
+- shared persistence is now `content_nodes`, `content_channel_links`, and `content_relations`
+- structural relations in core use abstract `parent`; source-specific meaning belongs in `relation_semantic`
+
 ## Hard Gate
 
 Do not start implementation immediately.
@@ -89,6 +96,7 @@ Research must confirm:
 - whether the source has a real `channel` concept
 - whether remote discovery and remote sync are distinct
 - how to identify unique content
+- whether the source has hierarchical or container-like content that should become `content_relations`
 - what time field is available
 - how pagination or incremental fetch works
 - what config is required
@@ -106,6 +114,9 @@ It must define:
 - supported capabilities
 - config fields and mode if needed
 - content normalization and dedup strategy
+- `content_key` strategy
+- whether update returns only direct content, or also context nodes and `content_relations`
+- whether the source needs `relation_semantic` values such as `reply`, `contains`, or `list_item`
 - storage requirements
 - error boundaries
 - CLI-visible semantics
@@ -126,6 +137,7 @@ The plan must break work into:
 
 - failing tests to add first
 - source code units to implement
+- `ContentSyncBatch` construction path
 - CLI verification steps
 - persistence and audit verification
 
@@ -153,6 +165,7 @@ Before claiming completion, verify:
 - help output
 - capability and config behavior
 - persistence side effects
+- `content_nodes` / `content_channel_links` / `content_relations` side effects when update is involved
 - interact audit behavior when applicable
 
 ## Read Next

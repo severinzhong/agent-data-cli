@@ -7,6 +7,8 @@ Use this file for HTTP or JSON API backed sources.
 - Is the API public, authenticated, or session-based?
 - Is there a stable identifier for channels?
 - Is remote search separate from update?
+- What should become `content_key`?
+- Does the API expose nested or container content that should become `content_relations`?
 - What field should become `external_id`?
 - What field should become `published_at`?
 - How does pagination work?
@@ -34,4 +36,5 @@ Typical API config:
 
 - confusing search results with update records
 - using a display title as unique id
+- collapsing container structure into `raw_payload` when it should be modeled as `content_relations`
 - burying auth logic in ad hoc environment reads

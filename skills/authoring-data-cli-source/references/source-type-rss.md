@@ -28,5 +28,5 @@ RSS is a good fit when:
 ## Common mistakes
 
 - treating a route template as a concrete channel without parameters
-- using feed order as a dedup key
+- using feed order as identity instead of deriving a stable `content_key`
 - silently ignoring malformed publish time data

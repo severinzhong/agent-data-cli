@@ -67,9 +67,23 @@ The store layer owns:
 
 - channels
 - subscriptions
-- content records
+- content nodes
+- content channel links
+- content relations
 - sync state
 - source config
 - action audit
 
-Source code returns normalized records and lets the store persist them.
+Update-capable source code returns normalized `ContentSyncBatch` data and lets the shared store persist it.
+
+Batch shape:
+
+- `nodes`: `ContentNode`
+- `channel_links`: `ContentChannelLink`
+- `relations`: `ContentRelation`
+
+Core relation rules:
+
+- core only interprets abstract structural relation type `parent`
+- source-specific meaning belongs in `relation_semantic`
+- do not invent source-private relation storage outside the shared store

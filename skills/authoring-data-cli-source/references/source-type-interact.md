@@ -18,6 +18,7 @@ Only add `content.interact` when the source can support all of:
 - only explicit refs are accepted
 - the source must parse and validate its own `content_ref`
 - interact must not implicitly update local records
+- `content_ref` is for executable remote targets; it is not a replacement for `content_key`
 
 ## Research questions
 
