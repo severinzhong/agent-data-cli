@@ -14,6 +14,12 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
         raise RuntimeError("--channel requires --source")
     if args.parent is not None and args.source is None:
         raise RuntimeError("--parent requires --source")
+    if args.children is not None and args.source is None:
+        raise RuntimeError("--children requires --source")
+    if args.parent is not None and args.children is not None:
+        raise RuntimeError("content query does not allow --parent with --children")
+    if args.depth is not None and args.parent is None and args.children is None:
+        raise RuntimeError("--depth requires --parent or --children")
     if args.channel is not None and args.group is not None:
         raise RuntimeError("content query does not allow --channel with --group")
     if args.source is not None and args.group is not None:
@@ -39,6 +45,8 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
         group_name=args.group,
         record_type=args.content_type,
         parent_ref=args.parent,
+        children_ref=args.children,
+        depth=1 if args.depth is None else args.depth,
         since=None if since is None else since_datetime_to_iso(since),
         keywords=args.keywords,
         limit=-1 if limit is None else limit,
@@ -64,7 +72,9 @@ CONTENT_QUERY_COMMAND = CommandNodeSpec(
             lines=[
                 "--keywords is only a local filter and does not trigger remote search",
                 "--group only filters local records and does not trigger remote expansion",
-                "--parent filters direct children of one local content node",
+                "--parent filters direct ancestor nodes of one local content node",
+                "--children filters direct descendant nodes of one local content node",
+                "--depth controls relation traversal depth; default is 1",
                 "Default limit is 20; --since does not imply --all",
             ],
         ),
@@ -83,6 +93,8 @@ CONTENT_QUERY_COMMAND = CommandNodeSpec(
         CommandArgSpec(names=("--keywords",), value_name="keywords"),
         CommandArgSpec(names=("--content-type",), value_name="content_type"),
         CommandArgSpec(names=("--parent",), value_name="content_ref"),
+        CommandArgSpec(names=("--children",), value_name="content_ref"),
+        CommandArgSpec(names=("--depth",), value_name="n", type=int),
         CommandArgSpec(names=("--since",), value_name="since"),
         CommandArgSpec(names=("--limit",), value_name="n", type=int),
         CommandArgSpec(names=("--all",), action="store_true", dest="fetch_all"),

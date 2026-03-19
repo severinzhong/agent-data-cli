@@ -7,6 +7,7 @@ from core.config import SourceConfigEntry
 from core.models import (
     ChannelRecord,
     ContentNode,
+    ContentQueryRow,
     ContentRecord,
     GroupMemberRecord,
     GroupRecord,
@@ -72,6 +73,25 @@ def row_to_content_node(row: sqlite3.Row) -> ContentNode:
         published_at=row["published_at"],
         fetched_at=row["fetched_at"],
         raw_payload=row["raw_payload"],
+        content_ref=row["content_ref"] if "content_ref" in row.keys() else None,
+    )
+
+
+def row_to_content_query_row(row: sqlite3.Row) -> ContentQueryRow:
+    return ContentQueryRow(
+        source=row["source"],
+        content_key=row["content_key"],
+        content_type=row["content_type"],
+        external_id=row["external_id"],
+        title=row["title"],
+        url=row["url"],
+        snippet=row["snippet"],
+        author=row["author"],
+        published_at=row["published_at"],
+        fetched_at=row["fetched_at"],
+        raw_payload=row["raw_payload"],
+        relation_depth=row["relation_depth"] if "relation_depth" in row.keys() else None,
+        relation_semantic=row["relation_semantic"] if "relation_semantic" in row.keys() else None,
         content_ref=row["content_ref"] if "content_ref" in row.keys() else None,
     )
 

@@ -6,6 +6,7 @@ from core.models import (
     ContentBatchWriteResult,
     ContentChannelLink,
     ContentNode,
+    ContentQueryRow,
     ContentRecord,
     ContentRelation,
     ContentSyncBatch,
@@ -14,7 +15,7 @@ from core.models import (
 )
 from utils.time import utc_now_iso
 
-from .repositories import row_to_content, row_to_content_node
+from .repositories import row_to_content, row_to_content_query_row
 
 
 def write_content_batch(
@@ -149,11 +150,13 @@ def query_content(
     group_name: str | None = None,
     record_type: str | None = None,
     parent_ref: str | None = None,
+    children_ref: str | None = None,
+    depth: int = 1,
     since: str | None = None,
     keywords: str | None = None,
     limit: int = 10,
     fetch_all: bool = False,
-) -> list[ContentNode]:
+) -> list[ContentQueryRow]:
     targets = resolve_query_targets(
         connection,
         storage_specs=storage_specs,
@@ -164,9 +167,13 @@ def query_content(
     if not targets:
         return []
     parent_source, parent_content_key = _resolve_parent_ref(parent_ref)
+    children_source, children_content_key = _resolve_parent_ref(children_ref)
     if parent_source is not None and source is not None and parent_source != source:
         raise RuntimeError(f"parent_ref source mismatch: expected {source}, got {parent_source}")
-    all_records: list[ContentNode] = []
+    if children_source is not None and source is not None and children_source != source:
+        raise RuntimeError(f"children_ref source mismatch: expected {source}, got {children_source}")
+    all_records: list[ContentQueryRow] = []
+    relation_query = parent_content_key is not None or children_content_key is not None
     for source_name, channel_filter in targets.items():
         all_records.extend(
             query_source_content(
@@ -175,18 +182,21 @@ def query_content(
                 channel_filter=channel_filter,
                 record_type=record_type,
                 parent_content_key=parent_content_key if parent_source in (None, source_name) else None,
+                children_content_key=children_content_key if children_source in (None, source_name) else None,
+                depth=depth,
                 since=since,
                 keywords=keywords,
             )
         )
-    all_records.sort(
-        key=lambda node: (
-            node.published_at or "",
-            node.fetched_at or "",
-            node.content_key,
-        ),
-        reverse=True,
-    )
+    if not relation_query:
+        all_records.sort(
+            key=lambda node: (
+                node.published_at or "",
+                node.fetched_at or "",
+                node.content_key,
+            ),
+            reverse=True,
+        )
     if fetch_all or limit < 0:
         return all_records
     return all_records[:limit]
@@ -199,9 +209,33 @@ def query_source_content(
     channel_filter: set[str] | None,
     record_type: str | None,
     parent_content_key: str | None,
+    children_content_key: str | None,
+    depth: int,
     since: str | None,
     keywords: str | None,
-) -> list[ContentNode]:
+) -> list[ContentQueryRow]:
+    if parent_content_key is not None:
+        return query_ancestor_nodes(
+            connection,
+            source=source,
+            origin_content_key=parent_content_key,
+            depth=depth,
+            channel_filter=channel_filter,
+            record_type=record_type,
+            since=since,
+            keywords=keywords,
+        )
+    if children_content_key is not None:
+        return query_descendant_nodes(
+            connection,
+            source=source,
+            origin_content_key=children_content_key,
+            depth=depth,
+            channel_filter=channel_filter,
+            record_type=record_type,
+            since=since,
+            keywords=keywords,
+        )
     query = [
         """
         SELECT
@@ -216,6 +250,8 @@ def query_source_content(
             n.published_at,
             n.fetched_at,
             n.raw_payload,
+            NULL AS relation_depth,
+            NULL AS relation_semantic,
             n.content_ref
         FROM content_nodes AS n
         WHERE n.source = ?
@@ -248,13 +284,27 @@ def query_source_content(
                 SELECT 1
                 FROM content_relations AS r
                 WHERE r.source = n.source
+                  AND r.to_content_key = n.content_key
+                  AND r.relation_type = 'parent'
+                  AND r.from_content_key = ?
+            )
+            """
+        )
+        params.append(parent_content_key)
+    if children_content_key is not None:
+        query.append(
+            """
+            AND EXISTS (
+                SELECT 1
+                FROM content_relations AS r
+                WHERE r.source = n.source
                   AND r.from_content_key = n.content_key
                   AND r.relation_type = 'parent'
                   AND r.to_content_key = ?
             )
             """
         )
-        params.append(parent_content_key)
+        params.append(children_content_key)
     if since is not None:
         normalized_since = _normalize_since_value(since)
         query.append("AND julianday(n.published_at) >= julianday(?)")
@@ -272,9 +322,171 @@ def query_source_content(
             """
         )
         params.extend([keyword, keyword, keyword, keyword])
+    _ = depth
     query.append("ORDER BY n.published_at DESC, n.node_id DESC")
     rows = connection.execute(" ".join(query), params).fetchall()
-    return [row_to_content_node(row) for row in rows]
+    return [row_to_content_query_row(row) for row in rows]
+
+
+def query_ancestor_nodes(
+    connection: sqlite3.Connection,
+    *,
+    source: str,
+    origin_content_key: str,
+    depth: int,
+    channel_filter: set[str] | None,
+    record_type: str | None,
+    since: str | None,
+    keywords: str | None,
+) -> list[ContentQueryRow]:
+    return _query_related_nodes(
+        connection,
+        source=source,
+        origin_content_key=origin_content_key,
+        depth=depth,
+        channel_filter=channel_filter,
+        record_type=record_type,
+        since=since,
+        keywords=keywords,
+        direction="ancestor",
+    )
+
+
+def query_descendant_nodes(
+    connection: sqlite3.Connection,
+    *,
+    source: str,
+    origin_content_key: str,
+    depth: int,
+    channel_filter: set[str] | None,
+    record_type: str | None,
+    since: str | None,
+    keywords: str | None,
+) -> list[ContentQueryRow]:
+    return _query_related_nodes(
+        connection,
+        source=source,
+        origin_content_key=origin_content_key,
+        depth=depth,
+        channel_filter=channel_filter,
+        record_type=record_type,
+        since=since,
+        keywords=keywords,
+        direction="descendant",
+    )
+
+
+def _query_related_nodes(
+    connection: sqlite3.Connection,
+    *,
+    source: str,
+    origin_content_key: str,
+    depth: int,
+    channel_filter: set[str] | None,
+    record_type: str | None,
+    since: str | None,
+    keywords: str | None,
+    direction: str,
+) -> list[ContentQueryRow]:
+    if direction == "ancestor":
+        anchor_key = "r.to_content_key"
+        join_condition = "r.from_content_key = walk.content_key"
+    else:
+        anchor_key = "r.from_content_key"
+        join_condition = "r.to_content_key = walk.content_key"
+
+    query = [
+        f"""
+        WITH RECURSIVE walk(content_key, relation_depth, relation_semantic) AS (
+            SELECT {anchor_key}, 1, r.relation_semantic
+            FROM content_relations AS r
+            WHERE r.source = ?
+              AND r.relation_type = 'parent'
+              AND {'r.from_content_key' if direction == 'ancestor' else 'r.to_content_key'} = ?
+            UNION ALL
+            SELECT {'r.to_content_key' if direction == 'ancestor' else 'r.from_content_key'}, walk.relation_depth + 1, r.relation_semantic
+            FROM content_relations AS r
+            JOIN walk ON {join_condition}
+            WHERE r.source = ?
+              AND r.relation_type = 'parent'
+              AND (? = -1 OR walk.relation_depth < ?)
+        ),
+        ranked AS (
+            SELECT
+                content_key,
+                relation_depth,
+                relation_semantic,
+                ROW_NUMBER() OVER (
+                    PARTITION BY content_key
+                    ORDER BY relation_depth ASC
+                ) AS row_number
+            FROM walk
+        )
+        SELECT
+            n.source,
+            n.content_key,
+            n.content_type,
+            n.external_id,
+            n.title,
+            n.url,
+            n.snippet,
+            n.author,
+            n.published_at,
+            n.fetched_at,
+            n.raw_payload,
+            ranked.relation_depth,
+            ranked.relation_semantic,
+            n.content_ref
+        FROM ranked
+        JOIN content_nodes AS n
+          ON n.source = ? AND n.content_key = ranked.content_key
+        WHERE n.source = ?
+          AND ranked.row_number = 1
+        """
+    ]
+    params: list[str | int] = [source, origin_content_key, source, depth, depth, source, source]
+    if channel_filter is not None:
+        if not channel_filter:
+            return []
+        placeholders = ", ".join("?" for _ in channel_filter)
+        query.append(
+            f"""
+            AND EXISTS (
+                SELECT 1
+                FROM content_channel_links AS l
+                WHERE l.source = n.source
+                  AND l.content_key = n.content_key
+                  AND l.channel_key IN ({placeholders})
+            )
+            """
+        )
+        params.extend(sorted(channel_filter))
+    if record_type is not None:
+        query.append("AND n.content_type = ?")
+        params.append(record_type)
+    if since is not None:
+        normalized_since = _normalize_since_value(since)
+        query.append("AND julianday(n.published_at) >= julianday(?)")
+        params.append(normalized_since)
+    if keywords is not None:
+        keyword = f"%{keywords}%"
+        query.append(
+            """
+            AND (
+                n.title LIKE ?
+                OR n.snippet LIKE ?
+                OR n.url LIKE ?
+                OR n.content_key LIKE ?
+            )
+            """
+        )
+        params.extend([keyword, keyword, keyword, keyword])
+    if direction == "ancestor":
+        query.append("ORDER BY ranked.relation_depth ASC, n.published_at DESC, n.node_id DESC")
+    else:
+        query.append("ORDER BY ranked.relation_depth ASC, n.published_at DESC, n.content_key")
+    rows = connection.execute(" ".join(query), params).fetchall()
+    return [row_to_content_query_row(row) for row in rows]
 
 
 def resolve_query_targets(

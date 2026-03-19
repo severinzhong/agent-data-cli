@@ -174,7 +174,9 @@ class ContentQueryRow:
     published_at: str | None
     fetched_at: str | None
     raw_payload: str
-    matched_channels: tuple[str, ...]
+    matched_channels: tuple[str, ...] = ()
+    relation_depth: int | None = None
+    relation_semantic: str | None = None
     content_ref: str | None = None
 
     @property

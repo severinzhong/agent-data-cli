@@ -152,6 +152,7 @@ For machine filtering, prefer `--jsonl` and pipe to shell tools:
 uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq '.title'
 uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq 'select(.channel=="BTC")'
 uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | awk -F'"' '/"channel": "BTC"/ {print $0}'
+uv run -m adc content query --source xiaohongshu --children xiaohongshu:content/note%3A123 --depth -1 --jsonl | jq '.relation_depth'
 ```
 
 The same pattern works for remote discovery:

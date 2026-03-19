@@ -7,6 +7,7 @@ from core.models import (
     ActionAuditRecord,
     ChannelRecord,
     ContentBatchWriteResult,
+    ContentQueryRow,
     ContentSyncBatch,
     ContentNode,
     ContentRecord,
@@ -243,11 +244,13 @@ class Store:
         group_name: str | None = None,
         record_type: str | None = None,
         parent_ref: str | None = None,
+        children_ref: str | None = None,
+        depth: int = 1,
         since: str | None = None,
         keywords: str | None = None,
         limit: int = 10,
         fetch_all: bool = False,
-    ) -> list[ContentNode]:
+    ) -> list[ContentQueryRow]:
         with self._connect() as connection:
             return content_store.query_content(
                 connection,
@@ -257,6 +260,8 @@ class Store:
                 group_name=group_name,
                 record_type=record_type,
                 parent_ref=parent_ref,
+                children_ref=children_ref,
+                depth=depth,
                 since=since,
                 keywords=keywords,
                 limit=limit,

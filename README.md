@@ -190,7 +190,7 @@ help
 - `channel search`：只做远端 channel 发现
 - `content search`：只做远端内容发现，不落库
 - `content update`：同步已订阅目标并写入本地
-- `content query`：只查本地
+- `content query`：只查本地，也支持围绕内容关系做 `--parent` / `--children` 遍历
 - `content interact`：只做显式远端副作用
 
 ## 最小 CLI 面
@@ -203,6 +203,7 @@ uv run -m adc source list
 uv run -m adc content search --source data_hub --channel official --query rss --limit 5
 uv run -m adc content update --group stocks --dry-run
 uv run -m adc content query --source data_hub --limit 10
+uv run -m adc content query --source <source> --children <content_ref> --depth -1
 ```
 
 交互命令形态：

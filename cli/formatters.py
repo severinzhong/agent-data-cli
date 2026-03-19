@@ -452,6 +452,8 @@ def build_content_json_row(item: ContentQueryRow, view: QueryViewSpec | None = N
             "published_at": item.published_at or "",
             "source": item.source,
             "content_type": item.content_type,
+            "relation_depth": item.relation_depth,
+            "relation_semantic": item.relation_semantic or "",
             "title": item.title,
             "snippet": item.snippet,
             "matched_channels": list(item.matched_channels),

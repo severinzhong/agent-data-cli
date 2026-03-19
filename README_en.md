@@ -189,7 +189,7 @@ Semantic boundaries:
 - `channel search`: remote channel discovery only
 - `content search`: remote content discovery only, no persistence
 - `content update`: sync subscribed targets and write them locally
-- `content query`: local-only query
+- `content query`: local-only query, with optional `--parent` / `--children` traversal over local content relations
 - `content interact`: explicit remote side effects only
 
 ## Minimal CLI Surface
@@ -202,6 +202,7 @@ uv run -m adc source list
 uv run -m adc content search --source data_hub --channel official --query rss --limit 5
 uv run -m adc content update --group stocks --dry-run
 uv run -m adc content query --source data_hub --limit 10
+uv run -m adc content query --source <source> --children <content_ref> --depth -1
 ```
 
 Interact command shape:

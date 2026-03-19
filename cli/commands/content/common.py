@@ -131,6 +131,8 @@ def build_query_rows(rows, registry, store: Store) -> list[dict[str, object]]:
             fetched_at=row.fetched_at,
             raw_payload=row.raw_payload,
             matched_channels=matched_channels,
+            relation_depth=row.relation_depth,
+            relation_semantic=row.relation_semantic,
             content_ref=row.content_ref,
         )
         view_channel = query_row.channel_key or None
