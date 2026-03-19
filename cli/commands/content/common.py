@@ -5,7 +5,7 @@ import argparse
 from cli.formatters import build_content_json_row
 from cli.commands.common import require_action, require_option
 from cli.commands.specs import PROGRAM_NAME
-from core.models import parse_content_ref
+from core.models import ContentQueryRow, parse_content_ref
 from store.db import Store
 
 
@@ -110,17 +110,34 @@ def resolve_query_sources(registry, store: Store, *, source: str | None, group: 
     return registry.list_names()
 
 
-def build_query_rows(rows, registry) -> list[dict[str, object]]:
+def build_query_rows(rows, registry, store: Store) -> list[dict[str, object]]:
     source_cache: dict[str, object] = {}
     view_cache: dict[tuple[str, str | None], object | None] = {}
     rendered_rows: list[dict[str, object]] = []
     for row in rows:
         if row.source not in source_cache:
             source_cache[row.source] = registry.build(row.source)
-        cache_key = (row.source, row.channel_key)
+        matched_channels = store.list_content_channels(row.source, row.content_key)
+        query_row = ContentQueryRow(
+            source=row.source,
+            content_key=row.content_key,
+            content_type=row.content_type,
+            external_id=row.external_id,
+            title=row.title,
+            url=row.url,
+            snippet=row.snippet,
+            author=row.author,
+            published_at=row.published_at,
+            fetched_at=row.fetched_at,
+            raw_payload=row.raw_payload,
+            matched_channels=matched_channels,
+            content_ref=row.content_ref,
+        )
+        view_channel = query_row.channel_key or None
+        cache_key = (query_row.source, view_channel)
         if cache_key not in view_cache:
-            view_cache[cache_key] = source_cache[row.source].get_query_view(row.channel_key)
-        rendered_rows.append(build_content_json_row(row, view=view_cache[cache_key]))
+            view_cache[cache_key] = source_cache[row.source].get_query_view(view_channel)
+        rendered_rows.append(build_content_json_row(query_row, view=view_cache[cache_key]))
     return rendered_rows
 
 

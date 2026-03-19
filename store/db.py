@@ -263,6 +263,10 @@ class Store:
                 fetch_all=fetch_all,
             )
 
+    def list_content_channels(self, source: str, content_key: str) -> tuple[str, ...]:
+        with self._connect() as connection:
+            return content_store.list_content_channels(connection, source, content_key)
+
     def _connect(self) -> sqlite3.Connection:
         return self._connection
 

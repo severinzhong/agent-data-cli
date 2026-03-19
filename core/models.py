@@ -161,6 +161,29 @@ class ContentBatchWriteResult:
 
 
 @dataclass(slots=True)
+class ContentQueryRow:
+    source: str
+    content_key: str
+    content_type: str
+    external_id: str
+    title: str
+    url: str
+    snippet: str
+    author: str | None
+    published_at: str | None
+    fetched_at: str | None
+    raw_payload: str
+    matched_channels: tuple[str, ...]
+    content_ref: str | None = None
+
+    @property
+    def channel_key(self) -> str:
+        if len(self.matched_channels) == 1:
+            return self.matched_channels[0]
+        return ""
+
+
+@dataclass(slots=True)
 class ContentRecord:
     source: str
     channel_key: str
@@ -245,7 +268,7 @@ class GroupMemberRecord:
 @dataclass(slots=True)
 class QueryColumnSpec:
     header: str
-    getter: Callable[[ContentRecord], str]
+    getter: Callable[[ContentQueryRow], str]
     justify: str = "left"
     max_width: int | None = None
     no_wrap: bool = False

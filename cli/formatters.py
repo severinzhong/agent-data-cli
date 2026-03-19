@@ -12,6 +12,7 @@ from core.manifest import ConfigFieldSpec
 from core.models import (
     CapabilityStatus,
     ChannelRecord,
+    ContentQueryRow,
     ContentRecord,
     GroupMemberRecord,
     GroupRecord,
@@ -443,16 +444,17 @@ def build_search_json_rows(items: list[SearchResult], view: SearchViewSpec | Non
     return [build_search_json_row(item, view=view) for item in items]
 
 
-def build_content_json_row(item: ContentRecord, view: QueryViewSpec | None = None) -> dict[str, object]:
+def build_content_json_row(item: ContentQueryRow, view: QueryViewSpec | None = None) -> dict[str, object]:
     if view is not None:
         row = {column.header: column.getter(item) for column in view.columns}
     else:
         row = {
             "published_at": item.published_at or "",
             "source": item.source,
-            "channel_key": item.channel_key,
+            "content_type": item.content_type,
             "title": item.title,
             "snippet": item.snippet,
+            "matched_channels": list(item.matched_channels),
             "url": item.url,
         }
     if item.content_ref is not None:
@@ -460,7 +462,7 @@ def build_content_json_row(item: ContentRecord, view: QueryViewSpec | None = Non
     return row
 
 
-def build_content_json_rows(items: list[ContentRecord], view: QueryViewSpec | None = None) -> list[dict[str, object]]:
+def build_content_json_rows(items: list[ContentQueryRow], view: QueryViewSpec | None = None) -> list[dict[str, object]]:
     return [build_content_json_row(item, view=view) for item in items]
 
 
@@ -476,7 +478,7 @@ def print_csv_rows(rows: list[dict[str, object]]) -> None:
     writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames, lineterminator="\n")
     writer.writeheader()
     for row in rows:
-        writer.writerow({field: "" if row.get(field) is None else row.get(field) for field in fieldnames})
+        writer.writerow({field: _csv_value(row.get(field)) for field in fieldnames})
 
 
 def _collect_row_headers(rows: list[dict[str, object]]) -> list[str]:
@@ -506,4 +508,14 @@ def _row_column_options(header: str) -> dict[str, object]:
 def _row_value(value: object) -> str:
     if value is None:
         return ""
+    if isinstance(value, (list, tuple)):
+        return ",".join(str(item) for item in value)
+    return str(value)
+
+
+def _csv_value(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return ",".join(str(item) for item in value)
     return str(value)

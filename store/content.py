@@ -530,3 +530,16 @@ def _content_key_exists(
         (source, content_key),
     ).fetchone()
     return row is not None
+
+
+def list_content_channels(connection: sqlite3.Connection, source: str, content_key: str) -> tuple[str, ...]:
+    rows = connection.execute(
+        """
+        SELECT channel_key
+        FROM content_channel_links
+        WHERE source = ? AND content_key = ?
+        ORDER BY channel_key
+        """,
+        (source, content_key),
+    ).fetchall()
+    return tuple(row["channel_key"] for row in rows)

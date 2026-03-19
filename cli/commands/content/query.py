@@ -44,7 +44,7 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
         limit=-1 if limit is None else limit,
         fetch_all=args.fetch_all,
     )
-    rendered_rows = build_query_rows(rows, ctx.registry)
+    rendered_rows = build_query_rows(rows, ctx.registry, ctx.store)
     if args.jsonl:
         print_jsonl_rows(rendered_rows)
         return 0
