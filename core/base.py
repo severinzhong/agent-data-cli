@@ -6,7 +6,9 @@ from core.config import ResolvedSourceConfig, SourceConfigError
 from core.manifest import SourceManifest
 from core.models import (
     ChannelRecord,
+    ContentNode,
     ContentRecord,
+    ContentSyncBatch,
     HealthRecord,
     InteractionResult,
     QueryViewSpec,
@@ -151,17 +153,16 @@ class BaseSource:
         for target in targets:
             channel = self.get_channel(target)
             store.upsert_channel(channel)
-            for record in self.fetch_content(
+            batch = self.fetch_content(
                 channel_key=target,
                 since=since,
                 limit=limit,
                 fetch_all=fetch_all,
-            ):
-                self._validate_content_record(record)
-                if store.upsert_content(record):
-                    saved_count += 1
-                else:
-                    skipped_count += 1
+            )
+            self._validate_content_batch(batch)
+            result = store.write_content_batch(self.name, target, batch)
+            saved_count += result.saved_nodes
+            skipped_count += result.skipped_nodes
             store.set_sync_state(self.name, target, utc_now_iso())
         return UpdateSummary(
             source=self.name,
@@ -176,7 +177,7 @@ class BaseSource:
         since: datetime | None = None,
         limit: int | None = 20,
         fetch_all: bool = False,
-    ) -> list[ContentRecord]:
+    ) -> ContentSyncBatch:
         raise UnsupportedActionError(f"{self.name} does not support content.update")
 
     def parse_content_ref(self, ref: str) -> str:
@@ -196,22 +197,26 @@ class BaseSource:
             raise RuntimeError(f"{self.__class__.__name__} missing manifest")
         return manifest
 
-    def _validate_content_record(self, record: ContentRecord) -> None:
+    def _validate_content_batch(self, batch: ContentSyncBatch) -> None:
+        for node in batch.nodes:
+            self._validate_content_node(node)
+
+    def _validate_content_node(self, node: ContentNode) -> None:
         manifest = self._manifest_spec()
         missing = [
             field_name
             for field_name in manifest.storage.required_record_fields
-            if getattr(record, field_name) in (None, "")
+            if getattr(node, field_name) in (None, "")
         ]
         if missing:
             raise RuntimeError(
-                f"{self.name} returned invalid content record missing required fields: {', '.join(missing)}"
+                f"{self.name} returned invalid content node missing required fields: {', '.join(missing)}"
             )
-        if record.content_ref is None:
+        if node.content_ref is None:
             return
         try:
-            parsed = parse_content_ref(record.content_ref)
+            parsed = parse_content_ref(node.content_ref)
         except ValueError as exc:
-            raise RuntimeError(f"{self.name} returned invalid content_ref: {record.content_ref}") from exc
+            raise RuntimeError(f"{self.name} returned invalid content_ref: {node.content_ref}") from exc
         if parsed.source != self.name:
-            raise RuntimeError(f"{self.name} returned content_ref source mismatch: {record.content_ref}")
+            raise RuntimeError(f"{self.name} returned content_ref source mismatch: {node.content_ref}")

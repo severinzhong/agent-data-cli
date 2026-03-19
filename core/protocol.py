@@ -6,6 +6,7 @@ from typing import Protocol
 from .models import (
     ChannelRecord,
     ContentRecord,
+    ContentSyncBatch,
     HealthRecord,
     InteractionResult,
     QueryViewSpec,
@@ -99,7 +100,7 @@ class SourceProtocol(Protocol):
         since: datetime | None = None,
         limit: int | None = 20,
         fetch_all: bool = False,
-    ) -> list[ContentRecord]:
+    ) -> ContentSyncBatch:
         raise NotImplementedError
 
     def get_query_view(self, channel_key: str | None = None) -> QueryViewSpec | None:
