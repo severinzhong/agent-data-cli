@@ -110,10 +110,18 @@ def resolve_query_sources(registry, store: Store, *, source: str | None, group: 
     return registry.list_names()
 
 
-def build_query_rows(rows, registry, store: Store) -> list[dict[str, object]]:
+def build_query_rows(
+    rows,
+    registry,
+    store: Store,
+    *,
+    use_native_view: bool = True,
+) -> tuple[list[dict[str, object]], dict[str, dict[str, object]], set[str]]:
     source_cache: dict[str, object] = {}
     view_cache: dict[tuple[str, str | None], object | None] = {}
     rendered_rows: list[dict[str, object]] = []
+    column_options: dict[str, dict[str, object]] = {}
+    native_view_headers: set[str] = set()
     for row in rows:
         if row.source not in source_cache:
             source_cache[row.source] = registry.build(row.source)
@@ -137,10 +145,24 @@ def build_query_rows(rows, registry, store: Store) -> list[dict[str, object]]:
         )
         view_channel = query_row.channel_key or None
         cache_key = (query_row.source, view_channel)
-        if cache_key not in view_cache:
+        if use_native_view and cache_key not in view_cache:
             view_cache[cache_key] = source_cache[row.source].get_query_view(view_channel)
-        rendered_rows.append(build_content_json_row(query_row, view=view_cache[cache_key]))
-    return rendered_rows
+        view = view_cache.get(cache_key) if use_native_view else None
+        if view is not None:
+            for column in view.columns:
+                native_view_headers.add(column.header)
+                if column.header in column_options:
+                    continue
+                option_values: dict[str, object] = {}
+                if column.justify != "left":
+                    option_values["justify"] = column.justify
+                if column.max_width is not None:
+                    option_values["max_width"] = column.max_width
+                if column.no_wrap:
+                    option_values["no_wrap"] = True
+                column_options[column.header] = option_values
+        rendered_rows.append(build_content_json_row(query_row, view=view))
+    return rendered_rows, column_options, native_view_headers
 
 
 def group_targets_by_source(targets: list[tuple[str, str]]) -> dict[str, tuple[str, ...]]:

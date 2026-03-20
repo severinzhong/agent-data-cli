@@ -56,14 +56,16 @@ def run_content_query(args, extras: list[str], ctx: CommandContext) -> int:
         limit=-1 if limit is None else limit,
         fetch_all=args.fetch_all,
     )
-    rendered_rows = build_query_rows(rows, ctx.registry, ctx.store)
     if args.jsonl:
+        rendered_rows, _, _ = build_query_rows(rows, ctx.registry, ctx.store, use_native_view=False)
         print_jsonl_rows(rendered_rows)
         return 0
     if getattr(args, "csv", False):
+        rendered_rows, _, _ = build_query_rows(rows, ctx.registry, ctx.store, use_native_view=False)
         print_csv_rows(rendered_rows)
         return 0
-    print_rows(rendered_rows)
+    rendered_rows, column_options, native_view_headers = build_query_rows(rows, ctx.registry, ctx.store)
+    print_rows(rendered_rows, column_options=column_options, skip_default_options=native_view_headers)
     return 0
 
 

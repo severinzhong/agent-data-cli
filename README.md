@@ -108,6 +108,7 @@ uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
 | `ashare` | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `ap` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `avwiki` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |

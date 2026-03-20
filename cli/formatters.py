@@ -142,12 +142,22 @@ def render_search_results_table(items: list[SearchResult], view: SearchViewSpec 
     return table
 
 
-def render_rows_table(rows: list[dict[str, object]]) -> Table:
+def render_rows_table(
+    rows: list[dict[str, object]],
+    column_options: dict[str, dict[str, object]] | None = None,
+    skip_default_options: set[str] | None = None,
+) -> Table:
     table = _new_table()
     headers = _collect_row_headers(rows)
-    column_options = {header: _row_column_options(header) for header in headers}
+    resolved_column_options = {
+        header: {
+            **({} if skip_default_options is not None and header in skip_default_options else _row_column_options(header)),
+            **({} if column_options is None else column_options.get(header, {})),
+        }
+        for header in headers
+    }
     for header in headers:
-        table.add_column(header, **column_options[header])
+        table.add_column(header, **resolved_column_options[header])
     for row in rows:
         table.add_row(*[_row_value(row.get(header)) for header in headers])
     return table
@@ -366,8 +376,12 @@ def print_content(items: list[ContentRecord], view: QueryViewSpec | None = None,
     _CONSOLE.print(render_content_table(items, view=view, native_view_ok=native_view_ok))
 
 
-def print_rows(rows: list[dict[str, object]]) -> None:
-    _CONSOLE.print(render_rows_table(rows))
+def print_rows(
+    rows: list[dict[str, object]],
+    column_options: dict[str, dict[str, object]] | None = None,
+    skip_default_options: set[str] | None = None,
+) -> None:
+    _CONSOLE.print(render_rows_table(rows, column_options=column_options, skip_default_options=skip_default_options))
 
 
 def print_health(item: HealthRecord) -> None:
