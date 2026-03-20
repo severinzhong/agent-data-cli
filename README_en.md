@@ -129,6 +129,7 @@ These sources are currently provided through [`agent-data-hub`](https://github.c
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `yahoojp_news` | ✅ | ❌ | ✅ | ✅ | ❌ |
 
 ## Thanks 
 

@@ -130,6 +130,7 @@ uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub
 | `usstock` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `yahoojp_news` | ✅ | ❌ | ✅ | ✅ | ❌ |
 
 ## Thanks
 
