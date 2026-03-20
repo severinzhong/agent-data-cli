@@ -117,12 +117,6 @@ uv run -m adc content interact --source data_hub --verb install --ref data_hub:c
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-示例：
-
-```bash
-uv run -m adc content search --source avwiki --query SSIS-001 --limit 5
-```
-
 ## Thanks
 
 感谢 [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli)。

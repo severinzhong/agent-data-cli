@@ -116,12 +116,6 @@ These sources are currently provided through [`agent-data-hub`](https://github.c
 | `wechatarticle` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-Example:
-
-```bash
-uv run -m adc content search --source avwiki --query SSIS-001 --limit 5
-```
-
 ## Thanks 
 
 to [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli).
