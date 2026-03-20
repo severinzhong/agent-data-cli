@@ -3,6 +3,7 @@ from __future__ import annotations
 from cli.commands.channel import CHANNEL_COMMAND
 from cli.commands.config import CONFIG_COMMAND
 from cli.commands.content import CONTENT_COMMAND
+from cli.commands.dashboard import DASHBOARD_COMMAND
 from cli.commands.group import GROUP_COMMAND
 from cli.commands.help import make_help_command
 from cli.commands.source import SOURCE_COMMAND
@@ -26,6 +27,7 @@ _BASE_COMMANDS: tuple[CommandNodeSpec, ...] = (
     SUB_COMMAND,
     GROUP_COMMAND,
     CONFIG_COMMAND,
+    DASHBOARD_COMMAND,
 )
 
 GLOBAL_HELP_SECTIONS = (
@@ -36,6 +38,7 @@ GLOBAL_HELP_SECTIONS = (
             "source list",
             "channel search --source <source> --query <query>",
             "content update --group <group> --dry-run",
+            "dashboard --daemon",
         ],
     ),
 )

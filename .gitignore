@@ -46,6 +46,7 @@ datacenter.sqlite3-*
 *.sqlite3-*
 *.db
 *.db-*
+dashboard/.runtime/
 
 # Local environment files
 .python-version

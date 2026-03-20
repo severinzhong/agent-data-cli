@@ -9,10 +9,24 @@ from utils.time import parse_since_expr
 
 
 DEFAULT_DB_PATH = "agent-data-cli.db"
+_DASHBOARD_SUBCOMMANDS = {"start", "status", "stop"}
+
+
+def normalize_argv(argv: list[str]) -> list[str]:
+    if not argv or argv[0] != "dashboard":
+        return argv
+    if len(argv) == 1:
+        return ["dashboard", "start"]
+    second = argv[1]
+    if second in _DASHBOARD_SUBCOMMANDS:
+        return argv
+    if second.startswith("-"):
+        return ["dashboard", "start", *argv[1:]]
+    return argv
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
+    argv = normalize_argv(list(sys.argv[1:] if argv is None else argv))
     parser = build_parser()
     args, extras = parse_command_argv(parser, argv)
     store = Store(DEFAULT_DB_PATH)

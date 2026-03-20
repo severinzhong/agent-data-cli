@@ -27,6 +27,17 @@
 
 当这些内置 skills 被加载后，agent 就可以沿着同一套命令面，用一条命令一步步完成 source 发现、更新同步和后续读取。
 
+## Dashboard
+
+除了 CLI，这个仓库现在也内置了一个面向人的轻量 dashboard。
+
+- `adc dashboard`：前台启动 dashboard
+- `adc dashboard start --daemon`：后台启动
+- `adc dashboard status`：查看运行状态
+- `adc dashboard stop`：停止后台服务
+
+dashboard 放在仓库内的 `dashboard/` 目录，目标是把现有 `source/channel/content/sub/group/config/help` 命令语义做成可视化操作台，而不是引入第二套 core 逻辑。
+
 ## 为什么是 agent-data-cli？
 
 - AI-native工具需要稳定的命令面，而不是一堆临时网页路径和站点脚本。
@@ -187,6 +198,7 @@ sub
 group
 config
 help
+dashboard
 ```
 
 语义边界：
@@ -208,6 +220,7 @@ uv run -m adc content search --source data_hub --channel official --query rss --
 uv run -m adc content update --group stocks --dry-run
 uv run -m adc content query --source data_hub --limit 10
 uv run -m adc content query --source <source> --children <content_ref> --depth -1
+uv run -m adc dashboard --daemon
 ```
 
 交互命令形态：

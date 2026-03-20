@@ -27,6 +27,17 @@ This repository is also a pack of loadable skills for:
 
 Once those built-in skills are loaded, an agent can follow the same command surface to discover sources, sync updates, and read results step by step through one command at a time.
 
+## Dashboard
+
+In addition to the CLI, this repository now ships with a lightweight dashboard for humans.
+
+- `adc dashboard`: start the dashboard in the foreground
+- `adc dashboard start --daemon`: start it in the background
+- `adc dashboard status`: show runtime status
+- `adc dashboard stop`: stop the background service
+
+The dashboard lives in the repository-local `dashboard/` directory. Its goal is to turn the existing `source/channel/content/sub/group/config/help` command semantics into a visual control surface, not to introduce a second core logic stack.
+
 ## Why agent-data-cli?
 
 - AI-native tools need a stable command surface, not a pile of temporary webpage paths and site scripts.
@@ -186,6 +197,7 @@ sub
 group
 config
 help
+dashboard
 ```
 
 Semantic boundaries:
@@ -207,6 +219,7 @@ uv run -m adc content search --source data_hub --channel official --query rss --
 uv run -m adc content update --group stocks --dry-run
 uv run -m adc content query --source data_hub --limit 10
 uv run -m adc content query --source <source> --children <content_ref> --depth -1
+uv run -m adc dashboard --daemon
 ```
 
 Interact command shape:
