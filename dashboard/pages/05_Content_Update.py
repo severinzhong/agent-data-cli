@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from dashboard.adapters.channel import list_channel_options
+from dashboard.adapters.channel import list_subscribed_channel_options
 from dashboard.adapters.content import update_content
 from dashboard.context import build_dashboard_context
 from dashboard.state import get_page_state, invalidate_pages, save_page_result
@@ -33,7 +33,7 @@ def render_page() -> None:
     with row2[0]:
         channel_key = (
             optional_channel_select(
-                [] if source_name is None else list_channel_options(ctx.registry, ctx.store, source_name),
+                [] if source_name is None else list_subscribed_channel_options(ctx.store, source_name),
                 key="content_update_channel",
             )
             if mode == "source"

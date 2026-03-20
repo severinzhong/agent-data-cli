@@ -21,6 +21,16 @@ def list_channel_options(registry, store, source_name: str) -> list[dict[str, st
     ]
 
 
+def list_subscribed_channel_options(store, source_name: str) -> list[dict[str, str]]:
+    return [
+        {
+            "value": subscription.channel_key,
+            "label": _channel_label(subscription.display_name, subscription.channel_key),
+        }
+        for subscription in store.list_subscriptions(source_name)
+    ]
+
+
 def list_channels(registry, store, source_name: str) -> list[dict[str, object]]:
     source = registry.build(source_name)
     require_action(registry, source_name, "channel.list")
