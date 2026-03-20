@@ -89,14 +89,16 @@ uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
 推荐直接这样理解：
 
 - `agent-data-hub` 是 source 仓库，同时提供 `sources.json`
-- `data_hub` 是内置在 core 里的轻量 source，用来读取这个索引并发现、引入这些官方整理好的 source
+- `data_hub` 是内置在 core 里的轻量 source，用来读取这个索引并发现、安装、卸载这些官方整理好的 source
 - 安装 source 仍然走现有协议，不额外引入新命令族
+- `uninstall` 会删除 workspace 里的 source 目录，并清理该 source 的本地配置、订阅、同步状态和内容数据
 
 典型流程：
 
 ```bash
 uv run -m adc content search --source data_hub --channel official --query xiaohongshu
 uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
 ```
 
 ## 官方整理 Source

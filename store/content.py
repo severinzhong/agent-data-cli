@@ -758,3 +758,13 @@ def list_content_channels(connection: sqlite3.Connection, source: str, content_k
         (source, content_key),
     ).fetchall()
     return tuple(row["channel_key"] for row in rows)
+
+
+def delete_source_sync_state(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM sync_state WHERE source = ?", (source,))
+
+
+def delete_source_content(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM content_relations WHERE source = ?", (source,))
+    connection.execute("DELETE FROM content_channel_links WHERE source = ?", (source,))
+    connection.execute("DELETE FROM content_nodes WHERE source = ?", (source,))

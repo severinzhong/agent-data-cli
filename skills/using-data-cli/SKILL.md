@@ -127,11 +127,12 @@ uv run -m adc config cli set source_workspace ./sources
 uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
 ```
 
-If the workspace contains `data_hub`, use it to discover and install official sources:
+If the workspace contains `data_hub`, use it to discover, install, or uninstall official sources:
 
 ```bash
 uv run -m adc content search --source data_hub --channel official --query xiaohongshu
 uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
 ```
 
 ### Schedule Updates with `cron`

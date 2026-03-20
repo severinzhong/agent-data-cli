@@ -36,3 +36,7 @@ def insert_action_audit(connection: sqlite3.Connection, record: ActionAuditRecor
             int(record.dry_run),
         ),
     )
+
+
+def delete_action_audits(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM action_audits WHERE source = ?", (source,))

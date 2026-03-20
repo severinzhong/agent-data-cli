@@ -47,3 +47,7 @@ def get_latest_health(connection: sqlite3.Connection, source: str) -> HealthReco
         (source,),
     ).fetchone()
     return row_to_health(row)
+
+
+def delete_health(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM health_checks WHERE source = ?", (source,))

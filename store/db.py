@@ -130,6 +130,18 @@ class Store:
         with self._connect() as connection:
             config_store.prune_cli_configs(connection, allowed_keys)
 
+    def purge_source_state(self, source: str) -> None:
+        with self._connect() as connection:
+            group_store.delete_source_group_members(connection, source)
+            subscription_store.delete_source_subscriptions(connection, source)
+            config_store.delete_source_configs(connection, source)
+            content_store.delete_source_sync_state(connection, source)
+            health_store.delete_health(connection, source)
+            audit_store.delete_action_audits(connection, source)
+            content_store.delete_source_content(connection, source)
+            channel_store.delete_channels(connection, source)
+            channel_store.delete_source(connection, source)
+
     def create_group(self, group_name: str) -> None:
         with self._connect() as connection:
             group_store.create_group(connection, group_name)

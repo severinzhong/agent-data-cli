@@ -69,6 +69,10 @@ def remove_subscription(connection: sqlite3.Connection, source: str, channel_key
     )
 
 
+def delete_source_subscriptions(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM subscriptions WHERE source = ?", (source,))
+
+
 def list_subscriptions(connection: sqlite3.Connection, source: str | None = None):
     if source is None:
         rows = connection.execute(

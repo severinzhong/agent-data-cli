@@ -70,3 +70,11 @@ def get_channel(connection: sqlite3.Connection, source: str, channel_key: str) -
         (source, channel_key),
     ).fetchone()
     return row_to_channel(row)
+
+
+def delete_channels(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM channels WHERE source = ?", (source,))
+
+
+def delete_source(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM sources WHERE name = ?", (source,))

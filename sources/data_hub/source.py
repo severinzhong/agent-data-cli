@@ -38,6 +38,7 @@ from core.models import (
     build_content_ref,
     parse_content_ref,
 )
+from core.registry import build_default_registry
 from utils.time import utc_now_iso
 
 
@@ -61,7 +62,7 @@ class CatalogEntry:
 class DataHubSource(BaseSource):
     name = "data_hub"
     display_name = "Data Hub"
-    description = "Official source catalog and source installation entrypoint"
+    description = "Official source catalog and source lifecycle entrypoint"
 
     def health(self) -> HealthRecord:
         started_at = time.perf_counter()
@@ -160,11 +161,14 @@ class DataHubSource(BaseSource):
 
     def interact(self, verb: str, refs: list[str], params: dict[str, object]) -> list[InteractionResult]:
         _ = params
-        if verb != "install":
+        if verb not in {"install", "uninstall"}:
             raise RuntimeError(f"unsupported verb: {self.name}.{verb}")
         results: list[InteractionResult] = []
         for source_name in refs:
-            self._install_source(source_name)
+            if verb == "install":
+                self._install_source(source_name)
+            else:
+                self._uninstall_source(source_name)
             results.append(InteractionResult(ref=source_name, verb=verb, status="ok"))
         return results
 
@@ -304,6 +308,15 @@ class DataHubSource(BaseSource):
             cwd=Path(__file__).resolve().parents[2],
         )
 
+    def _uninstall_source(self, source_name: str) -> None:
+        entry = self._entry_by_source_name(source_name)
+        target_dir = self._workspace_path() / entry.source_name
+        if not target_dir.is_dir():
+            raise RuntimeError(f"source not installed in workspace: {target_dir}")
+        self._require_store().purge_source_state(entry.source_name)
+        shutil.rmtree(target_dir)
+        build_default_registry(store=None, sources_dir=self._workspace_path())
+
     def _entry_by_source_name(self, source_name: str) -> CatalogEntry:
         for entry in self._load_index():
             if entry.source_name == source_name:
@@ -328,7 +341,7 @@ MANIFEST = SourceManifest(
     identity=SourceIdentity(
         name="data_hub",
         display_name="Data Hub",
-        summary="Official source catalog and installation source",
+        summary="Official source catalog and source lifecycle entrypoint",
     ),
     mode=None,
     config_fields=(
@@ -370,7 +383,10 @@ MANIFEST = SourceManifest(
                 "all": ActionOptionSpec(name="all"),
             },
         ),
-        "content.interact": SourceActionSpec(name="content.interact", summary="Install a source entry into the workspace"),
+        "content.interact": SourceActionSpec(
+            name="content.interact",
+            summary="Install or uninstall a source entry in the workspace",
+        ),
     },
     query=QuerySpec(time_field="published_at", supports_keywords=True),
     interaction_verbs={
@@ -378,7 +394,12 @@ MANIFEST = SourceManifest(
             name="install",
             summary="Install the selected source into the configured workspace",
             examples=("adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu",),
-        )
+        ),
+        "uninstall": InteractionVerbSpec(
+            name="uninstall",
+            summary="Uninstall the selected source from the configured workspace and clear local state",
+            examples=("adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu",),
+        ),
     },
     storage=StorageSpec(
         table_name="data_hub_records",
@@ -399,11 +420,12 @@ MANIFEST = SourceManifest(
     docs=DocsSpec(
         notes=(
             "data_hub publishes official source index entries as content.",
-            "Install is an explicit content.interact verb and never runs implicitly.",
+            "Install and uninstall are explicit content.interact verbs and never run implicitly.",
         ),
         examples=(
             "adc content search --source data_hub --channel official --query xiaohongshu",
             "adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu",
+            "adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu",
         ),
     ),
 )

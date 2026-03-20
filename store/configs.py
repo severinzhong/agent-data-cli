@@ -51,6 +51,10 @@ def unset_source_config(connection: sqlite3.Connection, source: str, key: str) -
     )
 
 
+def delete_source_configs(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM source_configs WHERE source = ?", (source,))
+
+
 def set_cli_config(
     connection: sqlite3.Connection,
     key: str,

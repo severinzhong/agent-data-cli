@@ -74,6 +74,10 @@ def remove_group_channel(connection: sqlite3.Connection, group_name: str, source
     )
 
 
+def delete_source_group_members(connection: sqlite3.Connection, source: str) -> None:
+    connection.execute("DELETE FROM group_members WHERE source = ?", (source,))
+
+
 def list_group_members(connection: sqlite3.Connection, group_name: str):
     rows = connection.execute(
         """

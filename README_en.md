@@ -88,14 +88,16 @@ uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
 The simplest mental model is:
 
 - `agent-data-hub` is the source repository and provides `sources.json`
-- `data_hub` is the lightweight built-in source used to read that index and discover or install the curated official sources
+- `data_hub` is the lightweight built-in source used to read that index and discover, install, or uninstall curated official sources
 - installation still uses the existing protocol surface; there is no separate plugin command family
+- `uninstall` removes the source directory from the workspace and clears that source's local configs, subscriptions, sync state, and content data
 
 Typical flow:
 
 ```bash
 uv run -m adc content search --source data_hub --channel official --query xiaohongshu
 uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
 ```
 
 ## Curated Sources
