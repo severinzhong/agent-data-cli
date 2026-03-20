@@ -36,7 +36,7 @@ def render_page() -> None:
     page_state = get_page_state(st.session_state, "config_page_state")
 
     with row2[1]:
-        list_clicked = st.button("List Config", key="config_list", use_container_width=True)
+        list_clicked = st.button("List Config", key="config_list", width="stretch")
 
     if list_clicked:
         try:

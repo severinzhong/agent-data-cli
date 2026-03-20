@@ -29,9 +29,9 @@ def render_page() -> None:
     with form_row2[1]:
         action_row = st.columns(2)
         with action_row[0]:
-            list_clicked = st.button("List Channels", key="channel_list", use_container_width=True)
+            list_clicked = st.button("List Channels", key="channel_list", width="stretch")
         with action_row[1]:
-            search_clicked = st.button("Search Channels", key="channel_search", use_container_width=True)
+            search_clicked = st.button("Search Channels", key="channel_search", width="stretch")
 
     if list_clicked and source_name is not None:
         try:

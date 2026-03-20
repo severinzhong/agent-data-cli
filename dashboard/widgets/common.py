@@ -48,14 +48,14 @@ def render_object_details(data: dict[str, object], *, title: str | None = None) 
     for section in sections["sections"]:
         st.markdown(f"##### {section['title']}")
         if section["kind"] == "table":
-            st.dataframe(section["rows"], use_container_width=True, hide_index=True)
+            st.dataframe(section["rows"], width="stretch", hide_index=True)
             continue
         with st.container(border=True):
             _render_kv_rows(section["rows"])
             for nested in section["sections"]:
                 st.markdown(f"###### {nested['title']}")
                 if nested["kind"] == "table":
-                    st.dataframe(nested["rows"], use_container_width=True, hide_index=True)
+                    st.dataframe(nested["rows"], width="stretch", hide_index=True)
                 else:
                     _render_kv_rows(nested["rows"])
 

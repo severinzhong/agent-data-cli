@@ -34,7 +34,7 @@ def render_page() -> None:
     page_state = get_page_state(st.session_state, "content_search_page_state")
 
     with row3[1]:
-        run_clicked = st.button("Run Search", key="content_search_run", use_container_width=True)
+        run_clicked = st.button("Run Search", key="content_search_run", width="stretch")
 
     if run_clicked and source_name is not None:
         try:
