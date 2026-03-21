@@ -1,0 +1,191 @@
+[
+  {
+    "source_name": "ap",
+    "display_name": "AP News",
+    "summary": "AP News fixed channels and site search",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "ap",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "content.search",
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "ashare",
+    "display_name": "A-Share",
+    "summary": "A-share market data via public suggest and quote endpoints",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "ashare",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "channel.search",
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "avwiki",
+    "display_name": "AV Wiki",
+    "summary": "AV-Wiki Japanese AV metadata search",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "avwiki",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "content.search"
+    ]
+  },
+  {
+    "source_name": "bbc",
+    "display_name": "BBC",
+    "summary": "BBC News RSS and site search",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "bbc",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "content.search",
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "cryptocompare",
+    "display_name": "CryptoCompare",
+    "summary": "Cryptocurrency day candles via public CryptoCompare APIs",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "cryptocompare",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "channel.search",
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "hackernews",
+    "display_name": "Hacker News",
+    "summary": "Hacker News public APIs",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "hackernews",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "content.search",
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "rsshub",
+    "display_name": "RSSHub",
+    "summary": "RSSHub routes as channels",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "rsshub",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "channel.search",
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "sina_finance_724",
+    "display_name": "Sina Finance 7x24",
+    "summary": "Sina Finance 7x24 live feed via app.cj.sina.com.cn API",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "sina_finance_724",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "usstock",
+    "display_name": "US Stock",
+    "summary": "US stock day bars via Eastmoney search and history endpoints",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "usstock",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "channel.search",
+      "content.update",
+      "content.query"
+    ]
+  },
+  {
+    "source_name": "wechatarticle",
+    "display_name": "WeChat Article",
+    "summary": "Sogou WeChat article search",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "wechatarticle",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "content.search"
+    ]
+  },
+  {
+    "source_name": "xiaohongshu",
+    "display_name": "Xiaohongshu",
+    "summary": "Xiaohongshu user channels, note search, sync, and interactions",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "xiaohongshu",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "channel.search",
+      "content.search",
+      "content.update",
+      "content.query",
+      "content.interact"
+    ]
+  },
+  {
+    "source_name": "yahoojp_news",
+    "display_name": "Yahoo!ニュース",
+    "summary": "Yahoo! News Japan RSS channels and feed sync",
+    "repo_url": "https://github.com/severinzhong/agent-data-hub",
+    "repo_subdir": "yahoojp_news",
+    "docs_url": "https://github.com/severinzhong/agent-data-hub",
+    "version": "official",
+    "install_strategy": "git_clone_subdir",
+    "init_script": "",
+    "capabilities": [
+      "channel.search",
+      "content.update",
+      "content.query"
+    ]
+  }
+]

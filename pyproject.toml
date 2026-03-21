@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "agent-data-cli"
 version = "0.1.0"
@@ -7,5 +11,25 @@ requires-python = ">=3.12"
 dependencies = [
     "httpx[socks]>=0.28.1",
     "rich>=14.3.3",
-    "streamlit>=1.55.0",
+]
+
+[project.scripts]
+adc = "agent_data_cli.main:console_main"
+
+[project.optional-dependencies]
+dashboard = [
+    "streamlit>=1.50.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agent_data_cli*"]
+
+[tool.setuptools.package-data]
+agent_data_cli = [
+    "bootstrap/sources.json",
+    "bootstrap/data_hub/*.py",
 ]

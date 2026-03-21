@@ -1,0 +1,5 @@
+exclude AGENTS.md
+prune docs
+prune tests
+prune .agents
+recursive-exclude tests *

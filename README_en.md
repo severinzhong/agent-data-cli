@@ -31,12 +31,15 @@ Once those built-in skills are loaded, an agent can follow the same command surf
 
 In addition to the CLI, this repository now ships with a lightweight dashboard for humans.
 
+- Base CLI install: `uv tool install agent-data-cli`
+- Install with dashboard: `uv tool install "agent-data-cli[dashboard]"`
+
 - `adc dashboard`: start the dashboard in the foreground
 - `adc dashboard start --daemon`: start it in the background
 - `adc dashboard status`: show runtime status
 - `adc dashboard stop`: stop the background service
 
-The dashboard lives in the repository-local `dashboard/` directory. Its goal is to turn the existing `source/channel/content/sub/group/config/help` command semantics into a visual control surface, not to introduce a second core logic stack.
+The dashboard source lives in repository-local `src/agent_data_cli/dashboard/`. Its goal is to turn the existing `source/channel/content/sub/group/config/help` command semantics into a visual control surface, not to introduce a second core logic stack.
 
 ## Why agent-data-cli?
 
@@ -46,6 +49,30 @@ The dashboard lives in the repository-local `dashboard/` directory. Its goal is 
 - Agents need an information center they can inspect, update, query, and extend, not a toolbox built from implicit behavior.
 
 In one line: `agent-data-cli` is about making all data AI-native and turning any data source into a CLI.
+
+## Install The CLI
+
+The recommended install path is as a command-line tool:
+
+```bash
+uv tool install agent-data-cli
+adc init --defaults
+adc source list
+```
+
+If you also want the dashboard:
+
+```bash
+uv tool install "agent-data-cli[dashboard]"
+adc init --defaults
+adc dashboard
+```
+
+Local runtime data goes to:
+
+```text
+~/.adc
+```
 
 ## Install with an Agent
 
@@ -76,20 +103,25 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 
 `agent-data-cli` is intended to work with the companion repository [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub).
 
-Core ships with one lightweight built-in source: `data_hub`.
+After installation, start with:
+
+```bash
+adc init --defaults
+```
+
+`adc init` creates `~/.adc`, initializes the database and runtime directories, sets the default `source_workspace`, and bootstraps `data_hub` into the local workspace.
 
 `agent-data-hub` contains the curated source implementations, and `agent-data-cli` discovers them through `source_workspace`:
 
 - CLI config key: `source_workspace`
-- default path: `./sources`
+- default path: `~/.adc/sources`
 - layout: one source package per direct child directory
 
 Examples:
 
 ```bash
-uv run -m adc config cli explain source_workspace
-uv run -m adc config cli set source_workspace ./sources
-uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
+adc config cli explain source_workspace
+adc config cli set source_workspace /abs/path/to/agent-data-hub
 ```
 
 `source list` only shows sources that exist in the current workspace.
@@ -99,16 +131,16 @@ uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
 The simplest mental model is:
 
 - `agent-data-hub` is the source repository and provides `sources.json`
-- `data_hub` is the lightweight built-in source used to read that index and discover, install, or uninstall curated official sources
+- `data_hub` is the bootstrap source released into the local workspace by `adc init`
 - installation still uses the existing protocol surface; there is no separate plugin command family
 - `uninstall` removes the source directory from the workspace and clears that source's local configs, subscriptions, sync state, and content data
 
 Typical flow:
 
 ```bash
-uv run -m adc content search --source data_hub --channel official --query xiaohongshu
-uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
-uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
+adc content search --source data_hub --channel official --query xiaohongshu
+adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
 ```
 
 ## Curated Sources
@@ -152,6 +184,19 @@ Install core dependencies:
 uv sync
 ```
 
+Install the published CLI:
+
+```bash
+uv tool install agent-data-cli
+adc init --defaults
+```
+
+Install with dashboard support:
+
+```bash
+uv tool install "agent-data-cli[dashboard]"
+```
+
 Source-specific dependencies belong to the source workspace, not to the core project manifest.
 
 ## Proxy Configuration
@@ -165,9 +210,9 @@ Source-specific dependencies belong to the source workspace, not to the core pro
 Examples:
 
 ```bash
-uv run -m adc config cli set proxy_url http://127.0.0.1:7890
-uv run -m adc config source set bbc proxy_url direct
-uv run -m adc config cli unset proxy_url
+adc config cli set proxy_url http://127.0.0.1:7890
+adc config source set bbc proxy_url direct
+adc config cli unset proxy_url
 ```
 
 ## How It Works
@@ -183,7 +228,7 @@ For an agent, the shortest path is:
 Unified entrypoint:
 
 ```bash
-uv run -m adc ...
+adc ...
 ```
 
 ## Command Model
@@ -191,6 +236,7 @@ uv run -m adc ...
 The stable command families are:
 
 ```text
+init
 source
 channel
 content
@@ -214,19 +260,20 @@ Semantic boundaries:
 Keeping a few common examples is enough:
 
 ```bash
-uv run -m adc help
-uv run -m adc source list
-uv run -m adc content search --source data_hub --channel official --query rss --limit 5
-uv run -m adc content update --group stocks --dry-run
-uv run -m adc content query --source data_hub --limit 10
-uv run -m adc content query --source <source> --children <content_ref> --depth -1
-uv run -m adc dashboard --daemon
+adc init --defaults
+adc help
+adc source list
+adc content search --source data_hub --channel official --query rss --limit 5
+adc content update --group stocks --dry-run
+adc content query --source data_hub --limit 10
+adc content query --source <source> --children <content_ref> --depth -1
+adc dashboard --daemon
 ```
 
 Interact command shape:
 
 ```bash
-uv run -m adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
+adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
 ```
 
 ## Local Data
@@ -234,7 +281,7 @@ uv run -m adc content interact --source <source> --verb <verb> --ref <content_re
 Default database file:
 
 ```text
-agent-data-cli.db
+~/.adc/agent-data-cli.db
 ```
 
 The shared store layer persists:
@@ -261,13 +308,10 @@ Where:
 ## Project Layout
 
 ```text
-cli/        argument parsing, command dispatch, output formatting
-core/       protocol, manifest, registry, shared models
-fetchers/   HTTP / browser fetching
-store/      SQLite persistence, deduplication, sync state, config, audit
-skills/     agent skills shipped with the repository
-tests/      unit tests and simulated CLI tests
-sources/    default local source_workspace path, usually backed by agent-data-hub
+src/agent_data_cli/  runtime code; includes cli/core/store/fetchers/dashboard/utils
+skills/              agent skills shipped with the repository
+tests/               unit tests and simulated CLI tests
+sources/             development-time local source workspace, usually backed by agent-data-hub
 ```
 
 ## Source Installation Boundary

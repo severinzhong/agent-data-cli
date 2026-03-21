@@ -31,12 +31,15 @@
 
 除了 CLI，这个仓库现在也内置了一个面向人的轻量 dashboard。
 
+- 基础 CLI 安装：`uv tool install agent-data-cli`
+- 需要 dashboard：`uv tool install "agent-data-cli[dashboard]"`
+
 - `adc dashboard`：前台启动 dashboard
 - `adc dashboard start --daemon`：后台启动
 - `adc dashboard status`：查看运行状态
 - `adc dashboard stop`：停止后台服务
 
-dashboard 放在仓库内的 `dashboard/` 目录，目标是把现有 `source/channel/content/sub/group/config/help` 命令语义做成可视化操作台，而不是引入第二套 core 逻辑。
+dashboard 源码放在仓库内的 `src/agent_data_cli/dashboard/`，目标是把现有 `source/channel/content/sub/group/config/help` 命令语义做成可视化操作台，而不是引入第二套 core 逻辑。
 
 ## 为什么是 agent-data-cli？
 
@@ -46,6 +49,30 @@ dashboard 放在仓库内的 `dashboard/` 目录，目标是把现有 `source/ch
 - Agent 需要一个可以检查、更新、查询、扩展的信息中心，而不是隐式行为堆出来的工具箱。
 
 一句话：`agent-data-cli` 的目标就是让所有数据 AI-Native，并把任意数据源 CLI 化。
+
+## 安装 CLI
+
+推荐直接安装成命令行工具：
+
+```bash
+uv tool install agent-data-cli
+adc init --defaults
+adc source list
+```
+
+如果你也需要 dashboard：
+
+```bash
+uv tool install "agent-data-cli[dashboard]"
+adc init --defaults
+adc dashboard
+```
+
+本地数据默认放在：
+
+```text
+~/.adc
+```
 
 ## 交给 Agent 安装
 
@@ -77,20 +104,25 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 
 `agent-data-cli` 可以配合伴生项目 [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub) 使用。
 
-core 默认内置一个很轻的 `data_hub` source。
+第一次安装后先执行：
+
+```bash
+adc init --defaults
+```
+
+`adc init` 会创建 `~/.adc`，初始化数据库、runtime 目录、默认 `source_workspace`，并把 bootstrap `data_hub` source 释放到本地 workspace。
 
 `agent-data-hub` 里放的是我已经整理好的 source，`agent-data-cli` 通过 `source_workspace` 去发现它们：
 
 - CLI 配置项：`source_workspace`
-- 默认路径：`./sources`
+- 默认路径：`~/.adc/sources`
 - 目录约定：每个一级子目录都是一个 source package
 
 示例：
 
 ```bash
-uv run -m adc config cli explain source_workspace
-uv run -m adc config cli set source_workspace ./sources
-uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
+adc config cli explain source_workspace
+adc config cli set source_workspace /abs/path/to/agent-data-hub
 ```
 
 `source list` 只会列出当前 workspace 中已经存在的 source。
@@ -100,16 +132,16 @@ uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
 推荐直接这样理解：
 
 - `agent-data-hub` 是 source 仓库，同时提供 `sources.json`
-- `data_hub` 是内置在 core 里的轻量 source，用来读取这个索引并发现、安装、卸载这些官方整理好的 source
+- `data_hub` 是 `adc init` 释放到本地 workspace 的 bootstrap source，用来读取这个索引并发现、安装、卸载这些官方整理好的 source
 - 安装 source 仍然走现有协议，不额外引入新命令族
 - `uninstall` 会删除 workspace 里的 source 目录，并清理该 source 的本地配置、订阅、同步状态和内容数据
 
 典型流程：
 
 ```bash
-uv run -m adc content search --source data_hub --channel official --query xiaohongshu
-uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
-uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
+adc content search --source data_hub --channel official --query xiaohongshu
+adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
 ```
 
 ## 官方整理 Source
@@ -153,6 +185,19 @@ uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub
 uv sync
 ```
 
+安装发布后的 CLI：
+
+```bash
+uv tool install agent-data-cli
+adc init --defaults
+```
+
+需要 dashboard 时：
+
+```bash
+uv tool install "agent-data-cli[dashboard]"
+```
+
 source 专属依赖属于 source workspace，不属于 core 项目 manifest。
 
 ## 代理配置
@@ -166,9 +211,9 @@ source 专属依赖属于 source workspace，不属于 core 项目 manifest。
 示例：
 
 ```bash
-uv run -m adc config cli set proxy_url http://127.0.0.1:7890
-uv run -m adc config source set bbc proxy_url direct
-uv run -m adc config cli unset proxy_url
+adc config cli set proxy_url http://127.0.0.1:7890
+adc config source set bbc proxy_url direct
+adc config cli unset proxy_url
 ```
 
 ## 工作方式
@@ -184,7 +229,7 @@ uv run -m adc config cli unset proxy_url
 统一入口：
 
 ```bash
-uv run -m adc ...
+adc ...
 ```
 
 ## 命令模型
@@ -192,6 +237,7 @@ uv run -m adc ...
 稳定命令族如下：
 
 ```text
+init
 source
 channel
 content
@@ -215,19 +261,20 @@ dashboard
 保留几个最常用例子就够了：
 
 ```bash
-uv run -m adc help
-uv run -m adc source list
-uv run -m adc content search --source data_hub --channel official --query rss --limit 5
-uv run -m adc content update --group stocks --dry-run
-uv run -m adc content query --source data_hub --limit 10
-uv run -m adc content query --source <source> --children <content_ref> --depth -1
-uv run -m adc dashboard --daemon
+adc init --defaults
+adc help
+adc source list
+adc content search --source data_hub --channel official --query rss --limit 5
+adc content update --group stocks --dry-run
+adc content query --source data_hub --limit 10
+adc content query --source <source> --children <content_ref> --depth -1
+adc dashboard --daemon
 ```
 
 交互命令形态：
 
 ```bash
-uv run -m adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
+adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
 ```
 
 ## 本地数据
@@ -235,7 +282,7 @@ uv run -m adc content interact --source <source> --verb <verb> --ref <content_re
 默认数据库文件：
 
 ```text
-agent-data-cli.db
+~/.adc/agent-data-cli.db
 ```
 
 共享存储层会统一保存：
@@ -262,13 +309,10 @@ agent-data-cli.db
 ## 项目结构
 
 ```text
-cli/        参数解析、命令分发、输出格式化
-core/       协议、manifest、registry、共享模型
-fetchers/   HTTP / 浏览器抓取
-store/      SQLite 持久化、去重、sync state、config、audit
-skills/     随仓库分发的 agent skills
-tests/      单元测试与 CLI 模拟测试
-sources/    默认本地 source_workspace 路径，通常由 agent-data-hub 提供内容
+src/agent_data_cli/  运行时代码；包含 cli/core/store/fetchers/dashboard/utils
+skills/              随仓库分发的 agent skills
+tests/               单元测试与 CLI 模拟测试
+sources/             开发时挂载的本地 source workspace，通常由 agent-data-hub 提供内容
 ```
 
 ## Source 安装边界

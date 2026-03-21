@@ -5,10 +5,14 @@ requires-python = ">=3.12"
 [[package]]
 name = "agent-data-cli"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "httpx", extra = ["socks"] },
     { name = "rich" },
+]
+
+[package.optional-dependencies]
+dashboard = [
     { name = "streamlit" },
 ]
 
@@ -16,8 +20,9 @@ dependencies = [
 requires-dist = [
     { name = "httpx", extras = ["socks"], specifier = ">=0.28.1" },
     { name = "rich", specifier = ">=14.3.3" },
-    { name = "streamlit", specifier = ">=1.55.0" },
+    { name = "streamlit", marker = "extra == 'dashboard'", specifier = ">=1.50.0" },
 ]
+provides-extras = ["dashboard"]
 
 [[package]]
 name = "altair"
