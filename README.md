@@ -60,12 +60,26 @@ adc init --defaults
 adc source list
 ```
 
+If you want to use `agent-data-cli` as a dependency inside an existing `uv` project:
+
+```bash
+uv add agent-data-cli
+uv run adc help
+```
+
 If you also want the dashboard:
 
 ```bash
 uv tool install "agent-data-cli[dashboard]"
 adc init --defaults
 adc dashboard
+```
+
+For a project dependency with dashboard support:
+
+```bash
+uv add "agent-data-cli[dashboard]"
+uv run adc dashboard --help
 ```
 
 Local runtime data goes to:

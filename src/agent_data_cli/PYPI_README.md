@@ -12,6 +12,13 @@ Recommended:
 uv tool install agent-data-cli
 ```
 
+If you want to use `agent-data-cli` inside an existing `uv` project:
+
+```bash
+uv add agent-data-cli
+uv run adc help
+```
+
 PyPA-standard CLI install:
 
 ```bash
@@ -22,6 +29,13 @@ If you also want the dashboard:
 
 ```bash
 uv tool install "agent-data-cli[dashboard]"
+```
+
+As a project dependency with dashboard support:
+
+```bash
+uv add "agent-data-cli[dashboard]"
+uv run adc dashboard --help
 ```
 
 or:

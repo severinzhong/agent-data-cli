@@ -50,6 +50,15 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data
 
 If `agent-data-cli` is not present locally, install it first:
 
+If you only need the packaged CLI inside an existing `uv` project:
+
+```bash
+uv add agent-data-cli
+uv run adc help
+```
+
+If you need the repository-local bundled skills and references, clone the repo:
+
 ```bash
 git clone https://github.com/severinzhong/agent-data-cli
 cd agent-data-cli
