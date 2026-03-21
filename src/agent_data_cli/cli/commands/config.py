@@ -3,6 +3,7 @@ from __future__ import annotations
 from agent_data_cli.cli.formatters import print_cli_config_entries, print_config_check, print_config_entries
 from agent_data_cli.cli.commands.specs import CommandArgSpec, CommandContext, CommandNodeSpec
 from agent_data_cli.core.config import validate_config_value
+from agent_data_cli.core.help import HelpSection
 from agent_data_cli.core.manifest import CORE_ACTION_NAMES, SOURCE_ACTION_NAMES
 from agent_data_cli.migration import migrate_home, migrate_source_workspace
 from agent_data_cli.runtime_paths import RuntimePaths, resolve_runtime_paths
@@ -146,6 +147,38 @@ def _validate_config_check_action_id(action_id: str | None) -> None:
 CONFIG_COMMAND = CommandNodeSpec(
     name="config",
     summary="Inspect and modify CLI or source configuration.",
+    sections=(
+        HelpSection(
+            title="Scopes",
+            lines=[
+                "config cli ... manages ADC-level settings",
+                "config source ... manages one source's settings",
+            ],
+        ),
+        HelpSection(
+            title="Common Commands",
+            lines=[
+                "config cli list",
+                "config cli explain <key>",
+                "config cli set <key> <value>",
+                "config cli unset <key>",
+                "config source list <source>",
+                "config source explain <source> <key>",
+                "config source set <source> <key> <value>",
+                "config source unset <source> <key>",
+                "config source check <source> [--for <action-id>] [--verb <verb>]",
+            ],
+        ),
+        HelpSection(
+            title="Typical Flow",
+            lines=[
+                "List current values first",
+                "Use explain before setting a key you do not recognize",
+                "Set the value",
+                "Run config source check when a source action still says it requires config",
+            ],
+        ),
+    ),
     child_dest="config_scope",
     children=(
         CommandNodeSpec(
