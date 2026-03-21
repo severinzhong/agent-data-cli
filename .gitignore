@@ -47,6 +47,7 @@ datacenter.sqlite3-*
 *.db
 *.db-*
 dashboard/.runtime/
+src/agent_data_cli/dashboard/.runtime/
 
 # Local environment files
 .python-version

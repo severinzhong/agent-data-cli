@@ -9,12 +9,12 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from agent_data_cli.runtime_paths import resolve_runtime_paths
 from agent_data_cli.utils.time import utc_now_iso
 
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8501
-RUNTIME_DIR = Path(__file__).resolve().parent / ".runtime"
 STATE_FILE_NAME = "server.json"
 LOG_FILE_NAME = "server.log"
 
@@ -36,8 +36,9 @@ def start_dashboard(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
     daemon: bool = True,
-    runtime_dir: Path = RUNTIME_DIR,
+    runtime_dir: Path | None = None,
 ) -> DashboardRuntimeStatus:
+    runtime_dir = _resolve_runtime_dir(runtime_dir)
     if not daemon:
         raise RuntimeError("start_dashboard only supports daemon mode")
     _assert_not_running(runtime_dir)
@@ -52,8 +53,9 @@ def run_dashboard_foreground(
     *,
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-    runtime_dir: Path = RUNTIME_DIR,
+    runtime_dir: Path | None = None,
 ) -> int:
+    runtime_dir = _resolve_runtime_dir(runtime_dir)
     _assert_not_running(runtime_dir)
     runtime_dir.mkdir(parents=True, exist_ok=True)
     log_path = runtime_dir / LOG_FILE_NAME
@@ -65,7 +67,8 @@ def run_dashboard_foreground(
         _clear_state(runtime_dir)
 
 
-def get_dashboard_status(*, runtime_dir: Path = RUNTIME_DIR) -> DashboardRuntimeStatus:
+def get_dashboard_status(*, runtime_dir: Path | None = None) -> DashboardRuntimeStatus:
+    runtime_dir = _resolve_runtime_dir(runtime_dir)
     state = _read_state(runtime_dir)
     if state is None:
         return DashboardRuntimeStatus(running=False)
@@ -77,9 +80,10 @@ def get_dashboard_status(*, runtime_dir: Path = RUNTIME_DIR) -> DashboardRuntime
 
 def stop_dashboard(
     *,
-    runtime_dir: Path = RUNTIME_DIR,
+    runtime_dir: Path | None = None,
     term_timeout_seconds: float = 1.0,
 ) -> DashboardRuntimeStatus:
+    runtime_dir = _resolve_runtime_dir(runtime_dir)
     state = _read_state(runtime_dir)
     if state is None:
         return DashboardRuntimeStatus(running=False)
@@ -196,3 +200,9 @@ def _is_process_alive(pid: int) -> bool:
 
 def _send_signal(pid: int, sig: int) -> None:
     os.kill(pid, sig)
+
+
+def _resolve_runtime_dir(runtime_dir: Path | None) -> Path:
+    if runtime_dir is not None:
+        return runtime_dir
+    return resolve_runtime_paths().runtime_dir
