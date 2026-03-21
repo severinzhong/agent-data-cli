@@ -22,13 +22,6 @@ from .base import BaseSource
 
 CLI_CONFIG_FIELDS: tuple[ConfigFieldSpec, ...] = (
     ConfigFieldSpec(
-        key="home",
-        type="path",
-        secret=False,
-        description="ADC home directory used for the local database, runtime files, and default workspace",
-        example="~/.adc",
-    ),
-    ConfigFieldSpec(
         key="source_workspace",
         type="path",
         secret=False,

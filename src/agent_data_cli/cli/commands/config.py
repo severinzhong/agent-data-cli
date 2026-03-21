@@ -5,7 +5,7 @@ from agent_data_cli.cli.commands.specs import CommandArgSpec, CommandContext, Co
 from agent_data_cli.core.config import validate_config_value
 from agent_data_cli.core.help import HelpSection
 from agent_data_cli.core.manifest import CORE_ACTION_NAMES, SOURCE_ACTION_NAMES
-from agent_data_cli.migration import migrate_home, migrate_source_workspace
+from agent_data_cli.migration import migrate_source_workspace
 from agent_data_cli.runtime_paths import RuntimePaths, resolve_runtime_paths
 from agent_data_cli.store.db import Store
 
@@ -24,10 +24,6 @@ def _run_config_cli_set(args, extras: list[str], ctx: CommandContext) -> int:
     spec = ctx.registry.get_cli_config_field_spec(args.key)
     validate_config_value(spec, args.value, owner="cli")
     current_paths = _resolve_active_runtime_paths(ctx)
-    if args.key == "home":
-        migrated_paths = migrate_home(current_paths, args.value)
-        _print_cli_config_entries_with_paths(ctx, migrated_paths)
-        return 0
     if args.key == "source_workspace":
         migrated_paths = migrate_source_workspace(current_paths, args.value)
         _print_cli_config_entries_with_paths(ctx, migrated_paths)
@@ -114,7 +110,6 @@ def _print_cli_config_entries_with_paths(ctx: CommandContext, paths: RuntimePath
         spec.key: ctx.registry.get_cli_config_default(spec.key)
         for spec in ctx.registry.get_cli_config_specs()
     }
-    defaults_by_key["home"] = str(paths.home)
     defaults_by_key["source_workspace"] = str(paths.source_workspace)
     print_cli_config_entries(
         ctx.registry.get_cli_config_specs(),
@@ -133,7 +128,6 @@ def _resolve_active_runtime_paths(ctx: CommandContext) -> RuntimePaths:
         db_path=paths.db_path,
         source_workspace=resolve_runtime_paths(source_workspace_override=source_workspace_entry.value).source_workspace,
         runtime_dir=paths.runtime_dir,
-        launcher_path=paths.launcher_path,
     )
 
 

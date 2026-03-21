@@ -3,27 +3,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from agent_data_cli.runtime_paths import RuntimePaths, resolve_runtime_paths, write_launcher_home
+from agent_data_cli.runtime_paths import RuntimePaths
 from agent_data_cli.store.db import Store
-
-
-def migrate_home(current_paths: RuntimePaths, target_home: str | Path) -> RuntimePaths:
-    new_home = Path(target_home).expanduser()
-    if new_home == current_paths.home:
-        return current_paths
-    _ensure_target_directory_available(new_home)
-    new_home.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(current_paths.home), str(new_home))
-    new_paths = resolve_runtime_paths(
-        user_home=current_paths.launcher_path.parent.parent,
-        home_override=new_home,
-    )
-    write_launcher_home(new_paths.launcher_path, new_home)
-    store = Store(str(new_paths.db_path))
-    store.set_cli_config("home", str(new_home), "path", False)
-    if current_paths.source_workspace == current_paths.home / "sources":
-        store.set_cli_config("source_workspace", str(new_home / "sources"), "path", False)
-    return new_paths
 
 
 def migrate_source_workspace(current_paths: RuntimePaths, target_source_workspace: str | Path) -> RuntimePaths:
@@ -40,7 +21,6 @@ def migrate_source_workspace(current_paths: RuntimePaths, target_source_workspac
         db_path=current_paths.db_path,
         source_workspace=new_source_workspace,
         runtime_dir=current_paths.runtime_dir,
-        launcher_path=current_paths.launcher_path,
     )
 
 

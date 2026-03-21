@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shutil
 
-from agent_data_cli.runtime_paths import RuntimePaths, is_initialized, write_launcher_home
+from agent_data_cli.runtime_paths import RuntimePaths, is_initialized
 from agent_data_cli.store.db import Store
 
 
@@ -15,10 +15,8 @@ def initialize_runtime(paths: RuntimePaths, *, force: bool = False) -> None:
     paths.home.mkdir(parents=True, exist_ok=True)
     paths.runtime_dir.mkdir(parents=True, exist_ok=True)
     paths.source_workspace.mkdir(parents=True, exist_ok=True)
-    write_launcher_home(paths.launcher_path, paths.home)
     store = Store(str(paths.db_path))
     store.init_schema()
-    store.set_cli_config("home", str(paths.home), "path", False)
     store.set_cli_config("source_workspace", str(paths.source_workspace), "path", False)
 
 

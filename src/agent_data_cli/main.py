@@ -52,20 +52,16 @@ def console_main() -> None:
 
 
 def _resolve_init_paths(args) -> object:
-    if getattr(args, "defaults", False) or getattr(args, "home", None) or getattr(args, "source_workspace", None):
+    if getattr(args, "defaults", False) or getattr(args, "source_workspace", None):
         return resolve_runtime_paths(
-            home_override=getattr(args, "home", None),
             source_workspace_override=getattr(args, "source_workspace", None),
         )
 
     initial = resolve_runtime_paths()
-    home_input = input(f"ADC home [{initial.home}]: ").strip()
-    resolved_home = home_input or str(initial.home)
-    source_default = resolve_runtime_paths(home_override=resolved_home).source_workspace
+    source_default = initial.source_workspace
     source_input = input(f"Source workspace [{source_default}]: ").strip()
     resolved_source_workspace = source_input or str(source_default)
     return resolve_runtime_paths(
-        home_override=resolved_home,
         source_workspace_override=resolved_source_workspace,
     )
 
