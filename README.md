@@ -1,58 +1,58 @@
 # agent-data-cli
 
-[English](./README_en.md) | [中文](./README.md)
+[English](./README.md) | [中文](./README_zh.md)
 
-> 让所有数据 AI-Native。
-> 把任意数据源 CLI 化。
-> AGENT帮你操作，帮你归集数据
-> 本项目是一套协议，让数据源能够方便的和AGENT沟通，使用稳定统一的`命令语言`
+> Making All Data AI-Native.
+> Turn Any Data Source into a CLI.
+> Let agents operate it and aggregate the data for you.
+> This project defines a protocol so data sources can talk to agents through a stable, uniform `command language`.
 
-`agent-data-cli` 是面向 agent 时代的本地信息中心。
+`agent-data-cli` is a local information center for the agent era.
 
-过去的大多数数据接口都是为人类设计的，要靠网页、信息流、后台面板和零散 API 去点、去找、去拼。`agent-data-cli` 要做的是把这件事重新组织成一套显式、可脚本化、可本地查询的统一`cli`接口，让 agent 真正能稳定操作数据。
+Most existing data interfaces were designed for humans. You click through websites, feeds, admin panels, and scattered APIs to find and piece things together. `agent-data-cli` reorganizes that into one explicit, scriptable, locally queryable `cli` interface so agents can operate data reliably.
 
-它为 agent 和人类提供统一入口，用来处理：
+It gives agents and humans one unified entrypoint for:
 
-- 新闻资讯
-- 社交媒体内容
-- 财经数据
-- RSS 订阅源
-- 其他可以映射到 `source/channel/content` 模型的内容源
+- news
+- social media content
+- financial data
+- RSS feeds
+- other content sources that can be mapped into the `source/channel/content` model
 
-这个仓库本身也是一组可装载的 skills，面向：
+This repository is also a pack of loadable skills for:
 
 - Codex
 - Claude Code
 - OpenClaw
 
-当这些内置 skills 被加载后，agent 就可以沿着同一套命令面，用一条命令一步步完成 source 发现、更新同步和后续读取。
+Once those built-in skills are loaded, an agent can follow the same command surface to discover sources, sync updates, and read results step by step through one command at a time.
 
 ## Dashboard
 
-除了 CLI，这个仓库现在也内置了一个面向人的轻量 dashboard。
+In addition to the CLI, this repository now ships with a lightweight dashboard for humans.
 
-- 基础 CLI 安装：`uv tool install agent-data-cli`
-- 需要 dashboard：`uv tool install "agent-data-cli[dashboard]"`
+- Base CLI install: `uv tool install agent-data-cli`
+- Install with dashboard: `uv tool install "agent-data-cli[dashboard]"`
 
-- `adc dashboard`：前台启动 dashboard
-- `adc dashboard start --daemon`：后台启动
-- `adc dashboard status`：查看运行状态
-- `adc dashboard stop`：停止后台服务
+- `adc dashboard`: start the dashboard in the foreground
+- `adc dashboard start --daemon`: start it in the background
+- `adc dashboard status`: show runtime status
+- `adc dashboard stop`: stop the background service
 
-dashboard 源码放在仓库内的 `src/agent_data_cli/dashboard/`，目标是把现有 `source/channel/content/sub/group/config/help` 命令语义做成可视化操作台，而不是引入第二套 core 逻辑。
+The dashboard source lives in repository-local `src/agent_data_cli/dashboard/`. Its goal is to turn the existing `source/channel/content/sub/group/config/help` command semantics into a visual control surface, not to introduce a second core logic stack.
 
-## 为什么是 agent-data-cli？
+## Why agent-data-cli?
 
-- AI-native工具需要稳定的命令面，而不是一堆临时网页路径和站点脚本。
-- 多源数据应该表现成一个系统，而不是互不相干的站点适配器集合。
-- 发现、同步、本地查询、远端副作用必须有清晰边界。
-- Agent 需要一个可以检查、更新、查询、扩展的信息中心，而不是隐式行为堆出来的工具箱。
+- AI-native tools need a stable command surface, not a pile of temporary webpage paths and site scripts.
+- Multi-source data should behave like one system, not a collection of unrelated site adapters.
+- Discovery, sync, local query, and remote side effects need clear boundaries.
+- Agents need an information center they can inspect, update, query, and extend, not a toolbox built from implicit behavior.
 
-一句话：`agent-data-cli` 的目标就是让所有数据 AI-Native，并把任意数据源 CLI 化。
+In one line: `agent-data-cli` is about making all data AI-native and turning any data source into a CLI.
 
-## 安装 CLI
+## Install The CLI
 
-推荐直接安装成命令行工具：
+The recommended install path is as a command-line tool:
 
 ```bash
 uv tool install agent-data-cli
@@ -60,7 +60,7 @@ adc init --defaults
 adc source list
 ```
 
-如果你也需要 dashboard：
+If you also want the dashboard:
 
 ```bash
 uv tool install "agent-data-cli[dashboard]"
@@ -68,75 +68,74 @@ adc init --defaults
 adc dashboard
 ```
 
-本地数据默认放在：
+Local runtime data goes to:
 
 ```text
 ~/.adc
 ```
 
-## 交给 Agent 安装
+## Install with an Agent
 
-把这个仓库地址直接交给你的 agent，你可以直接这样说：
+Give your agent the repository URL directly. You can say things like:
 
-- “从 `https://github.com/severinzhong/agent-data-cli` 安装 `agent-data-cli`，装载内置 skills，然后直接帮我用。”
-- “用 `agent-data-cli` 帮我找 source、订阅 channel、同步更新，再读取本地结果。”
-- “使用 `agent-data-cli` 里的 source authoring skill，帮我新增一个 source。”
+- "Install `agent-data-cli` from `https://github.com/severinzhong/agent-data-cli`, load the built-in skills, and use it directly for me."
+- "Use `agent-data-cli` to help me find a source, subscribe to channels, sync updates, and then read the local results."
+- "Use the source authoring skill in `agent-data-cli` to add a new source for me."
 
-## 从 skills.sh 单独安装这两个 skill
+## Install These Two skills Separately from skills.sh
 
-如果你只想安装这两个内置 skill，可以直接执行：
+If you only want these two built-in skills, run:
 
 ```bash
 npx skills add https://github.com/severinzhong/agent-data-cli --skill using-data-cli
 npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-data-cli-source
 ```
 
-## 语义对齐
+## Semantic Alignment
 
-`agent-data-cli` 的核心模型只保留两层资源：`source` 和 `channel`。
+`agent-data-cli` keeps only two core resource levels: `source` and `channel`.
 
-- `source`：一种具体的数据源实现，也是能力边界，比如一个新闻站点、一个股市数据源，或一个社交媒体平台。
-- `channel`：source 内部一个可跟踪目标，可以是一条 feed、一个股票代码、一个 RSSHub 路由。你可以发现 channel、订阅或取消订阅、加入 group，并对已订阅的 channel 执行 `content update`。例如 `bbc` 的 `world`、`ashare` 的 `sh600001`、`rsshub` 的 `/youtube/channel/<id>`。
-- `content`：一次远端搜索结果，或一次同步后写入本地的内容节点。帖子、评论、楼中楼回复都统一落成 `content node`；`channel` 仍然只是订阅和同步入口，不是第三层资源。你可以用 `content search` 做远端发现，用 `content query` 读取本地库，用 `content update` 把已订阅 channel 的远端内容同步到本地；如果某个 source 以后声明了交互动词，还可以通过 `content interact` 对单条内容执行显式远端操作。
-
+- `source`: a concrete data source implementation and a capability boundary, such as a news site, a market data provider, or a social media platform.
+- `channel`: a trackable target inside a source. A channel can be a feed, a stock symbol, or an RSSHub route. You can discover channels, subscribe or unsubscribe them, add them to groups, and run `content update` on subscribed channels. Examples include BBC's `world`, A-share symbol `sh600001`, and RSSHub route `/youtube/channel/<id>`.
+- `content`: a remote search result or a local content node written after sync. Posts, comments, and nested replies all normalize into `content nodes`; `channel` remains a subscription and sync boundary, not a third resource level. You use `content search` for remote discovery, `content query` for local reads, and `content update` to sync remote content from subscribed channels into the local store. If a source later declares interaction verbs, you can also use `content interact` to run explicit remote actions on individual content items.
 
 ## Source Workspace
 
-`agent-data-cli` 可以配合伴生项目 [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub) 使用。
+`agent-data-cli` is intended to work with the companion repository [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub).
 
-第一次安装后先执行：
+After installation, start with:
 
 ```bash
 adc init --defaults
 ```
 
-`adc init` 会创建 `~/.adc`，初始化数据库、runtime 目录和默认 `source_workspace`。
+`adc init` creates `~/.adc`, initializes the database and runtime directories, and sets the default `source_workspace`.
 
-`agent-data-hub` 里放的是我已经整理好的 source，`agent-data-cli` 通过 `source_workspace` 去发现它们：
+`agent-data-hub` contains the curated source implementations, and `agent-data-cli` discovers them through `source_workspace`:
 
-- CLI 配置项：`source_workspace`
-- 默认路径：`~/.adc/sources`
-- 目录约定：每个一级子目录都是一个 source package
+- CLI config key: `source_workspace`
+- default path: `~/.adc/sources`
+- layout: one source package per direct child directory
 
-示例：
+Examples:
 
 ```bash
 adc config cli explain source_workspace
 adc config cli set source_workspace /abs/path/to/agent-data-hub
 ```
 
-`source list` 只会列出当前 workspace 中已经存在的 source。
+`source list` only shows sources that exist in the current workspace.
 
-## `hub` 与 `agent-data-hub`
+## `hub` And `agent-data-hub`
 
-推荐直接这样理解：
+The simplest mental model is:
 
-- `agent-data-hub` 是 source 仓库，同时提供 `sources.json`
-- `hub` 是 core 内置命令族，用来读取这个索引并发现、安装、更新、卸载这些官方整理好的 source
-- `hub` 不属于 source 协议面，因此不会出现在 `source list`
-- `hub uninstall` 会删除 workspace 里的 source 目录，并清理该 source 的本地配置、订阅、同步状态和内容数据
+- `agent-data-hub` is the source repository and provides `sources.json`
+- `hub` is the core command family that reads that index and handles source discovery, install, update, and uninstall
+- `hub` is not part of the source protocol surface, so it does not appear in `source list`
+- `hub uninstall` removes the source directory from the workspace and clears that source's local configs, subscriptions, sync state, and content data
 
-典型流程：
+Typical flow:
 
 ```bash
 adc hub search --query xiaohongshu
@@ -145,9 +144,9 @@ adc hub update xiaohongshu
 adc hub uninstall xiaohongshu
 ```
 
-## 官方整理 Source
+## Curated Sources
 
-这些 source 现在由 [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub) 提供：
+These sources are currently provided through [`agent-data-hub`](https://github.com/severinzhong/agent-data-hub):
 
 | Source | Channel Search | Content Search | Update | Query | Interact |
 | --- | --- | --- | --- | --- | --- |
@@ -164,51 +163,51 @@ adc hub uninstall xiaohongshu
 | `xiaohongshu` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `yahoojp_news` | ✅ | ❌ | ✅ | ✅ | ❌ |
 
-## Thanks
+## Thanks 
 
-感谢 [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli)。
+to [jackwener/xiaohongshu-cli](https://github.com/jackwener/xiaohongshu-cli).
 
-装配 `authoring-data-cli-source` 技能后，对 agent 说把 `https://github.com/jackwener/xiaohongshu-cli` 处理成 source，然后按照 agent 指引操作，完成开发到测试用时 3-4 小时，enjoy～💗
+After equipping the `authoring-data-cli-source` skill, tell your agent to turn `https://github.com/jackwener/xiaohongshu-cli` into a source, then follow the agent's guidance step by step. From development through testing, the whole process took about 3-4 hours. enjoy~💗
 
 ---
 
-# 以下内容由AGNET阅读，人类无需阅读
+# The Rest Below Is for Agents, Not Humans
 
-## 环境要求
+## Requirements
 
 - Python `3.12+`
 - `uv`
 
-安装 core 依赖：
+Install core dependencies:
 
 ```bash
 uv sync
 ```
 
-安装发布后的 CLI：
+Install the published CLI:
 
 ```bash
 uv tool install agent-data-cli
 adc init --defaults
 ```
 
-需要 dashboard 时：
+Install with dashboard support:
 
 ```bash
 uv tool install "agent-data-cli[dashboard]"
 ```
 
-source 专属依赖属于 source workspace，不属于 core 项目 manifest。
+Source-specific dependencies belong to the source workspace, not to the core project manifest.
 
-## 代理配置
+## Proxy Configuration
 
-`proxy_url` 只保留一个字段，但有三种语义：
+`proxy_url` keeps a single field with three meanings:
 
-- 未配置：使用用户当前网络环境
-- `http://127.0.0.1:7890`：强制走这个代理
-- `direct`：强制直连，并且不继承 CLI 级代理
+- unset: use the user's current network environment
+- `http://127.0.0.1:7890`: force that proxy
+- `direct`: force direct connection and do not inherit the CLI-level proxy
 
-示例：
+Examples:
 
 ```bash
 adc config cli set proxy_url http://127.0.0.1:7890
@@ -216,25 +215,25 @@ adc config source set bbc proxy_url direct
 adc config cli unset proxy_url
 ```
 
-## 工作方式
+## How It Works
 
-对 agent 来说，最短路径就是：
+For an agent, the shortest path is:
 
-1. 发现 source 或 channel
-2. 如果要持续跟踪，就先订阅
-3. 把远端数据同步到本地
-4. 从本地数据库读取
-5. 需要时再执行显式远端交互
+1. Discover a source or channel.
+2. Subscribe first if you want to track it continuously.
+3. Sync remote data into the local store.
+4. Read from the local database.
+5. Run explicit remote interactions only when needed.
 
-统一入口：
+Unified entrypoint:
 
 ```bash
 adc ...
 ```
 
-## 命令模型
+## Command Model
 
-稳定命令族如下：
+The stable command families are:
 
 ```text
 init
@@ -249,18 +248,18 @@ help
 dashboard
 ```
 
-语义边界：
+Semantic boundaries:
 
-- `channel search`：只做远端 channel 发现
-- `content search`：只做远端内容发现，不落库
-- `content update`：同步已订阅目标并写入本地
-- `content query`：只查本地，也支持围绕内容关系做 `--parent` / `--children` 遍历
-- `content interact`：只做显式远端副作用
-- `hub`：只做 source catalog 与 source 生命周期
+- `channel search`: remote channel discovery only
+- `content search`: remote content discovery only, no persistence
+- `content update`: sync subscribed targets and write them locally
+- `content query`: local-only query, with optional `--parent` / `--children` traversal over local content relations
+- `content interact`: explicit remote side effects only
+- `hub`: source catalog and source lifecycle only
 
-## 最小 CLI 面
+## Minimal CLI Surface
 
-保留几个最常用例子就够了：
+Keeping a few common examples is enough:
 
 ```bash
 adc init --defaults
@@ -273,21 +272,21 @@ adc content query --source <source> --children <content_ref> --depth -1
 adc dashboard --daemon
 ```
 
-交互命令形态：
+Interact command shape:
 
 ```bash
 adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref <content_ref> ...] [verb options...]
 ```
 
-## 本地数据
+## Local Data
 
-默认数据库文件：
+Default database file:
 
 ```text
 ~/.adc/agent-data-cli.db
 ```
 
-共享存储层会统一保存：
+The shared store layer persists:
 
 - channels
 - subscriptions
@@ -302,33 +301,33 @@ adc content interact --source <source> --verb <verb> --ref <content_ref> [--ref 
 - `content_channel_links`
 - `content_relations`
 
-其中：
+Where:
 
-- `content_nodes` 保存内容节点本体
-- `content_channel_links` 保存内容节点通过哪些 channel 被同步进本地库
-- `content_relations` 保存内容节点之间的结构关系；core 当前内置的抽象关系类型是 `parent`
+- `content_nodes` stores the content node itself
+- `content_channel_links` stores which channels brought each node into the local store
+- `content_relations` stores structural relationships between content nodes; the current built-in abstract relation type in core is `parent`
 
-## 项目结构
+## Project Layout
 
 ```text
-src/agent_data_cli/  运行时代码；包含 cli/core/store/fetchers/dashboard/utils
-skills/              随仓库分发的 agent skills
-tests/               单元测试与 CLI 模拟测试
-sources/             开发时挂载的本地 source workspace，通常由 agent-data-hub 提供内容
+src/agent_data_cli/  runtime code; includes cli/core/store/fetchers/dashboard/utils
+skills/              agent skills shipped with the repository
+tests/               unit tests and simulated CLI tests
+sources/             development-time local source workspace, usually backed by agent-data-hub
 ```
 
-## Source 安装边界
+## Source Installation Boundary
 
-不要把 source runtime 依赖安装进 core 项目的 manifest。
+Do not install source runtime dependencies into the core project manifest.
 
-禁止：
+Forbidden:
 
 ```bash
 uv add playwright
 uv add xhshow
 ```
 
-允许的 source 本地安装方式：
+Allowed source-local installation patterns:
 
 ```bash
 uv pip install -p .venv/bin/python -r /abs/path/to/source/requirements.txt
@@ -336,34 +335,34 @@ uv pip install -p .venv/bin/python -e /abs/path/to/source
 bash /abs/path/to/source/init.sh
 ```
 
-当前内置 skills：
+Current built-in skills:
 
 - [`using-data-cli`](./skills/using-data-cli/SKILL.md)
 - [`authoring-data-cli-source`](./skills/authoring-data-cli-source/SKILL.md)
 
-## 测试
+## Testing
 
-跑全量测试：
+Run the full test suite:
 
 ```bash
 env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u no_proxy -u NO_PROXY .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-`tests/test_browser_fetcher.py` 是真实集成测试，要求本机存在一个开启了 CDP 的 Chrome：
+`tests/test_browser_fetcher.py` is a real integration test and requires a local Chrome instance with CDP enabled at:
 
 ```text
 http://127.0.0.1:9222
 ```
 
-## 开发新 Source
+## Developing a New Source
 
-新增 source 时，应该在 source workspace 仓库里开发，通常是 `agent-data-hub`，而不是直接改 tracked 的 core 仓库。
+Develop new sources in the source workspace repo, typically `agent-data-hub`, not in the tracked core repository.
 
-标准路径仍然是：
+The normal path is still:
 
-1. 新建 `<source_workspace>/<name>/source.py`
-2. 继承 `BaseSource`
-3. 声明 `MANIFEST` 和 `SOURCE_CLASS`
-4. 把站点逻辑限制在 `<source_workspace>/<name>/` 内部
+1. Create `<source_workspace>/<name>/source.py`.
+2. Inherit `BaseSource`.
+3. Declare `MANIFEST` and `SOURCE_CLASS`.
+4. Keep site-specific logic inside `<source_workspace>/<name>/`.
 
-如果 source 有额外 runtime 依赖，把它们留在该 source 自己的目录里，通过 `uv pip install` 或 `init.sh` 安装，不要在 core 仓库里执行 `uv add`。
+If the source has extra runtime dependencies, keep them in that source package and install them with `uv pip install` or `init.sh`, never with `uv add` in the core repo.
