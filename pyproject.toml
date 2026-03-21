@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-data-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Unified multi-source content CLI for discovery, sync, local query, and explicit interaction."
 readme = {file = "src/agent_data_cli/PYPI_README.md", content-type = "text/markdown"}
 license = "MIT"
