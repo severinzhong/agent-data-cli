@@ -5,13 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agent-data-cli"
 version = "0.1.0"
-description = "Add your description here"
+description = "Unified multi-source content CLI for discovery, sync, local query, and explicit interaction."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "httpx[socks]>=0.28.1",
     "rich>=14.3.3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/severinzhong/agent-data-cli"
+Repository = "https://github.com/severinzhong/agent-data-cli"
+Issues = "https://github.com/severinzhong/agent-data-cli/issues"
 
 [project.scripts]
 adc = "agent_data_cli.main:console_main"
