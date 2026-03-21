@@ -1,3 +1,5 @@
+include LICENSE
+include src/agent_data_cli/PYPI_README.md
 exclude AGENTS.md
 prune docs
 prune tests

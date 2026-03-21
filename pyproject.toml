@@ -6,8 +6,26 @@ build-backend = "setuptools.build_meta"
 name = "agent-data-cli"
 version = "0.1.0"
 description = "Unified multi-source content CLI for discovery, sync, local query, and explicit interaction."
-readme = "README.md"
+readme = {file = "src/agent_data_cli/PYPI_README.md", content-type = "text/markdown"}
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
+authors = [
+    {name = "Severin Zhong"},
+]
+keywords = ["cli", "agents", "rss", "news", "data", "automation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+]
 dependencies = [
     "httpx[socks]>=0.28.1",
     "rich>=14.3.3",
@@ -15,7 +33,10 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/severinzhong/agent-data-cli"
+Documentation = "https://github.com/severinzhong/agent-data-cli"
+Source = "https://github.com/severinzhong/agent-data-cli"
 Repository = "https://github.com/severinzhong/agent-data-cli"
+Changelog = "https://github.com/severinzhong/agent-data-cli/releases"
 Issues = "https://github.com/severinzhong/agent-data-cli/issues"
 
 [project.scripts]
