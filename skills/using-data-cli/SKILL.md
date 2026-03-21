@@ -59,14 +59,14 @@ uv sync
 Then:
 
 1. Load the bundled skills from this repository's `skills/` directory.
-2. Use the repo root that contains `pyproject.toml`, `cli/`, and `store/`.
-3. Treat `source_workspace` as external configuration. The default path is `./sources`, and it is typically backed by the separate `agent-data-hub` workspace.
+2. Use the repo root that contains `pyproject.toml` and `src/agent_data_cli/`.
+3. Treat `source_workspace` as external configuration. It is typically backed by the separate `agent-data-hub` workspace.
 4. Execute commands from the repo root.
 
 Always prefer:
 
 ```bash
-uv run -m adc ...
+uv run adc ...
 ```
 
 ## Operating Rules
@@ -98,15 +98,15 @@ Read `references/result-reporting.md` before reporting back after a multi-step r
 When one source needs its own proxy behavior, configure it explicitly:
 
 ```bash
-uv run -m adc config source set <source> proxy_url http://127.0.0.1:7890
-uv run -m adc config source set <source> proxy_url direct
+uv run adc config source set <source> proxy_url http://127.0.0.1:7890
+uv run adc config source set <source> proxy_url direct
 ```
 
 If multiple sources should share one proxy, set the CLI-level default:
 
 ```bash
-uv run -m adc config cli set proxy_url http://127.0.0.1:7890
-uv run -m adc config cli unset proxy_url
+uv run adc config cli set proxy_url http://127.0.0.1:7890
+uv run adc config cli unset proxy_url
 ```
 
 If a source needs to bypass an inherited CLI proxy, set that source to `direct`.
@@ -114,7 +114,7 @@ If a source needs to bypass an inherited CLI proxy, set that source to `direct`.
 Inspect current source config:
 
 ```bash
-uv run -m adc config source list <source>
+uv run adc config source list <source>
 ```
 
 ### Configure `source_workspace`
@@ -122,17 +122,18 @@ uv run -m adc config source list <source>
 Core only loads sources that exist in the current workspace.
 
 ```bash
-uv run -m adc config cli explain source_workspace
-uv run -m adc config cli set source_workspace ./sources
-uv run -m adc config cli set source_workspace /abs/path/to/agent-data-hub
+uv run adc config cli explain source_workspace
+uv run adc config cli set source_workspace /abs/path/to/agent-data-hub
 ```
 
-If the workspace contains `data_hub`, use it to discover, install, or uninstall official sources:
+Use `hub` to discover and manage official sources:
 
 ```bash
-uv run -m adc content search --source data_hub --channel official --query xiaohongshu
-uv run -m adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
-uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
+uv run adc config cli set hub_index /abs/path/to/agent-data-hub/sources.json
+uv run adc hub search --query xiaohongshu
+uv run adc hub install xiaohongshu
+uv run adc hub update xiaohongshu
+uv run adc hub uninstall xiaohongshu
 ```
 
 ### Schedule Updates with `cron`
@@ -140,7 +141,7 @@ uv run -m adc content interact --source data_hub --verb uninstall --ref data_hub
 Use a system scheduler when you want periodic local syncs. Keep the repo path explicit and append logs so the run can be inspected later:
 
 ```bash
-30 8 * * * cd /abs/path/to/agent-data-cli && /abs/path/to/uv run -m adc content update --source bbc >> /abs/path/to/agent-data-cli/update.log 2>&1
+30 8 * * * cd /abs/path/to/agent-data-cli && /abs/path/to/uv run adc content update --source bbc >> /abs/path/to/agent-data-cli/update.log 2>&1
 ```
 
 If you need tighter OS integration, the same pattern can also be implemented with `launchd` or `systemd`.
@@ -150,16 +151,16 @@ If you need tighter OS integration, the same pattern can also be implemented wit
 For machine filtering, prefer `--jsonl` and pipe to shell tools:
 
 ```bash
-uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq '.title'
-uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq 'select(.channel=="BTC")'
-uv run -m adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | awk -F'"' '/"channel": "BTC"/ {print $0}'
-uv run -m adc content query --source xiaohongshu --children xiaohongshu:content/note%3A123 --depth -1 --jsonl | jq '.relation_depth'
+uv run adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq '.title'
+uv run adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | jq 'select(.channel=="BTC")'
+uv run adc content query --source cryptocompare --channel BTC --limit 30 --jsonl | awk -F'"' '/"channel": "BTC"/ {print $0}'
+uv run adc content query --source xiaohongshu --children xiaohongshu:content/note%3A123 --depth -1 --jsonl | jq '.relation_depth'
 ```
 
 The same pattern works for remote discovery:
 
 ```bash
-uv run -m adc channel search --source cryptocompare --query BTC --limit 5 --jsonl | jq '.channel_key'
+uv run adc channel search --source cryptocompare --query BTC --limit 5 --jsonl | jq '.channel_key'
 ```
 
 ### Save Output with `>` and `>>`
@@ -167,9 +168,9 @@ uv run -m adc channel search --source cryptocompare --query BTC --limit 5 --json
 Use `>` to overwrite a file and `>>` to append:
 
 ```bash
-uv run -m adc content query --source cryptocompare --channel BTC --limit 100 --jsonl > btc.jsonl
-uv run -m adc content query --source cryptocompare --channel ETH --limit 100 --jsonl >> btc.jsonl
-uv run -m adc channel search --source cryptocompare --query BTC --limit 20 --jsonl > channels.jsonl
+uv run adc content query --source cryptocompare --channel BTC --limit 100 --jsonl > btc.jsonl
+uv run adc content query --source cryptocompare --channel ETH --limit 100 --jsonl >> btc.jsonl
+uv run adc channel search --source cryptocompare --query BTC --limit 20 --jsonl > channels.jsonl
 ```
 
 This is useful when you want to:
