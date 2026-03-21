@@ -108,7 +108,7 @@ def _print_cli_config_entries(ctx: CommandContext) -> None:
 
 def _print_cli_config_entries_with_paths(ctx: CommandContext, paths: RuntimePaths) -> None:
     store = ctx.store
-    if str(paths.db_path) != getattr(ctx.store, "path", ""):
+    if str(paths.db_path) != getattr(ctx.store, "path", "") and paths.db_path.exists():
         store = Store(str(paths.db_path))
     defaults_by_key = {
         spec.key: ctx.registry.get_cli_config_default(spec.key)

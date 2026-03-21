@@ -110,7 +110,7 @@ npx skills add https://github.com/severinzhong/agent-data-cli --skill authoring-
 adc init --defaults
 ```
 
-`adc init` 会创建 `~/.adc`，初始化数据库、runtime 目录、默认 `source_workspace`，并把 bootstrap `data_hub` source 释放到本地 workspace。
+`adc init` 会创建 `~/.adc`，初始化数据库、runtime 目录和默认 `source_workspace`。
 
 `agent-data-hub` 里放的是我已经整理好的 source，`agent-data-cli` 通过 `source_workspace` 去发现它们：
 
@@ -127,23 +127,22 @@ adc config cli set source_workspace /abs/path/to/agent-data-hub
 
 `source list` 只会列出当前 workspace 中已经存在的 source。
 
-## `data_hub` 与 `agent-data-hub`
+## `hub` 与 `agent-data-hub`
 
 推荐直接这样理解：
 
 - `agent-data-hub` 是 source 仓库，同时提供 `sources.json`
-- `data_hub` 是 `adc init` 释放到本地 workspace 的 bootstrap source，用来读取这个索引并发现、安装、卸载这些官方整理好的 source
-- `data_hub` 是 `adc init` 释放到本地 workspace 的 bootstrap source，用来读取这个索引并发现、安装、更新、卸载这些官方整理好的 source
-- 安装 source 仍然走现有协议，不额外引入新命令族
-- `uninstall` 会删除 workspace 里的 source 目录，并清理该 source 的本地配置、订阅、同步状态和内容数据
+- `hub` 是 core 内置命令族，用来读取这个索引并发现、安装、更新、卸载这些官方整理好的 source
+- `hub` 不属于 source 协议面，因此不会出现在 `source list`
+- `hub uninstall` 会删除 workspace 里的 source 目录，并清理该 source 的本地配置、订阅、同步状态和内容数据
 
 典型流程：
 
 ```bash
-adc content search --source data_hub --channel official --query xiaohongshu
-adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
-adc content interact --source data_hub --verb update --ref data_hub:content/xiaohongshu
-adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
+adc hub search --query xiaohongshu
+adc hub install xiaohongshu
+adc hub update xiaohongshu
+adc hub uninstall xiaohongshu
 ```
 
 ## 官方整理 Source
@@ -157,7 +156,6 @@ adc content interact --source data_hub --verb uninstall --ref data_hub:content/x
 | `avwiki` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
-| `data_hub` | ❌ | ✅ | ✅ | ✅ | ✅ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
@@ -240,6 +238,7 @@ adc ...
 
 ```text
 init
+hub
 source
 channel
 content
@@ -257,6 +256,7 @@ dashboard
 - `content update`：同步已订阅目标并写入本地
 - `content query`：只查本地，也支持围绕内容关系做 `--parent` / `--children` 遍历
 - `content interact`：只做显式远端副作用
+- `hub`：只做 source catalog 与 source 生命周期
 
 ## 最小 CLI 面
 
@@ -265,10 +265,10 @@ dashboard
 ```bash
 adc init --defaults
 adc help
+adc hub search --query rss
+adc hub install xiaohongshu
 adc source list
-adc content search --source data_hub --channel official --query rss --limit 5
 adc content update --group stocks --dry-run
-adc content query --source data_hub --limit 10
 adc content query --source <source> --children <content_ref> --depth -1
 adc dashboard --daemon
 ```

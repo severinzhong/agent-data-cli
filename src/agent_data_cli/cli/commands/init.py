@@ -18,7 +18,7 @@ def _run_init(args, extras: list[str], ctx) -> int:
 
 INIT_COMMAND = CommandNodeSpec(
     name="init",
-    summary="Initialize adc home, database, workspace, and bootstrap assets.",
+    summary="Initialize adc home, database, runtime, and source workspace.",
     arg_specs=(
         CommandArgSpec(names=("--defaults",), action="store_true"),
         CommandArgSpec(names=("--force",), action="store_true"),

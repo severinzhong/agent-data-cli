@@ -14,6 +14,7 @@ from agent_data_cli.core.config import (
 from agent_data_cli.core.discovery import scan_source_modules
 from agent_data_cli.core.manifest import ConfigFieldSpec, SourceManifest
 from agent_data_cli.core.models import CapabilityStatus, SourceDescriptor, SourceStorageSpec
+from agent_data_cli.hub.models import DEFAULT_HUB_INDEX
 from agent_data_cli.store.db import Store
 
 from .base import BaseSource
@@ -33,6 +34,13 @@ CLI_CONFIG_FIELDS: tuple[ConfigFieldSpec, ...] = (
         secret=False,
         description="Source workspace root directory scanned for source packages",
         example="./sources",
+    ),
+    ConfigFieldSpec(
+        key="hub_index",
+        type="string",
+        secret=False,
+        description="Hub catalog location. Accepts a local sources.json path or a remote http/https JSON URL.",
+        example="/abs/path/to/sources.json or https://example.com/sources.json",
     ),
     ConfigFieldSpec(
         key="proxy_url",
@@ -75,6 +83,7 @@ CLI_CONFIG_FIELDS: tuple[ConfigFieldSpec, ...] = (
 
 CLI_CONFIG_DEFAULTS: dict[str, str] = {
     "source_workspace": "./sources",
+    "hub_index": DEFAULT_HUB_INDEX,
 }
 
 

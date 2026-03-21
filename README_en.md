@@ -109,7 +109,7 @@ After installation, start with:
 adc init --defaults
 ```
 
-`adc init` creates `~/.adc`, initializes the database and runtime directories, sets the default `source_workspace`, and bootstraps `data_hub` into the local workspace.
+`adc init` creates `~/.adc`, initializes the database and runtime directories, and sets the default `source_workspace`.
 
 `agent-data-hub` contains the curated source implementations, and `agent-data-cli` discovers them through `source_workspace`:
 
@@ -126,22 +126,22 @@ adc config cli set source_workspace /abs/path/to/agent-data-hub
 
 `source list` only shows sources that exist in the current workspace.
 
-## `data_hub` And `agent-data-hub`
+## `hub` And `agent-data-hub`
 
 The simplest mental model is:
 
 - `agent-data-hub` is the source repository and provides `sources.json`
-- `data_hub` is the bootstrap source released into the local workspace by `adc init`
-- installation and update still use the existing protocol surface; there is no separate plugin command family
-- `uninstall` removes the source directory from the workspace and clears that source's local configs, subscriptions, sync state, and content data
+- `hub` is the core command family that reads that index and handles source discovery, install, update, and uninstall
+- `hub` is not part of the source protocol surface, so it does not appear in `source list`
+- `hub uninstall` removes the source directory from the workspace and clears that source's local configs, subscriptions, sync state, and content data
 
 Typical flow:
 
 ```bash
-adc content search --source data_hub --channel official --query xiaohongshu
-adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
-adc content interact --source data_hub --verb update --ref data_hub:content/xiaohongshu
-adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
+adc hub search --query xiaohongshu
+adc hub install xiaohongshu
+adc hub update xiaohongshu
+adc hub uninstall xiaohongshu
 ```
 
 ## Curated Sources
@@ -155,7 +155,6 @@ These sources are currently provided through [`agent-data-hub`](https://github.c
 | `avwiki` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `bbc` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `cryptocompare` | ✅ | ❌ | ✅ | ✅ | ❌ |
-| `data_hub` | ❌ | ✅ | ✅ | ✅ | ✅ |
 | `hackernews` | ❌ | ✅ | ✅ | ✅ | ❌ |
 | `rsshub` | ✅ | ❌ | ✅ | ✅ | ❌ |
 | `sina_finance_724` | ❌ | ❌ | ✅ | ✅ | ❌ |
@@ -238,6 +237,7 @@ The stable command families are:
 
 ```text
 init
+hub
 source
 channel
 content
@@ -255,6 +255,7 @@ Semantic boundaries:
 - `content update`: sync subscribed targets and write them locally
 - `content query`: local-only query, with optional `--parent` / `--children` traversal over local content relations
 - `content interact`: explicit remote side effects only
+- `hub`: source catalog and source lifecycle only
 
 ## Minimal CLI Surface
 
@@ -263,10 +264,10 @@ Keeping a few common examples is enough:
 ```bash
 adc init --defaults
 adc help
+adc hub search --query rss
+adc hub install xiaohongshu
 adc source list
-adc content search --source data_hub --channel official --query rss --limit 5
 adc content update --group stocks --dry-run
-adc content query --source data_hub --limit 10
 adc content query --source <source> --children <content_ref> --depth -1
 adc dashboard --daemon
 ```

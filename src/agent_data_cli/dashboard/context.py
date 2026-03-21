@@ -21,6 +21,7 @@ def build_dashboard_context(
     sources_dir: Path | None = None,
 ) -> DashboardContext:
     resolved_db_path = str(resolve_runtime_paths().db_path) if db_path is None else db_path
+    Path(resolved_db_path).parent.mkdir(parents=True, exist_ok=True)
     store = Store(resolved_db_path)
     store.init_schema()
     registry = build_default_registry(store, sources_dir=sources_dir)

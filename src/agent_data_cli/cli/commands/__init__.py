@@ -6,6 +6,7 @@ from agent_data_cli.cli.commands.content import CONTENT_COMMAND
 from agent_data_cli.cli.commands.dashboard import DASHBOARD_COMMAND
 from agent_data_cli.cli.commands.group import GROUP_COMMAND
 from agent_data_cli.cli.commands.help import make_help_command
+from agent_data_cli.cli.commands.hub import HUB_COMMAND
 from agent_data_cli.cli.commands.init import INIT_COMMAND
 from agent_data_cli.cli.commands.source import SOURCE_COMMAND
 from agent_data_cli.cli.commands.specs import (
@@ -23,6 +24,7 @@ from agent_data_cli.core.help import HelpSection
 
 _BASE_COMMANDS: tuple[CommandNodeSpec, ...] = (
     INIT_COMMAND,
+    HUB_COMMAND,
     SOURCE_COMMAND,
     CHANNEL_COMMAND,
     CONTENT_COMMAND,
@@ -37,6 +39,7 @@ GLOBAL_HELP_SECTIONS = (
         title="Examples",
         lines=[
             "init --defaults",
+            "hub search --query <query>",
             "help content search",
             "source list",
             "channel search --source <source> --query <query>",

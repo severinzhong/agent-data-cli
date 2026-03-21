@@ -20,10 +20,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if not is_initialized(paths):
-        if args.command == "help" and not getattr(args, "topic", None):
-            from agent_data_cli.cli.commands import build_global_help_doc
+        if args.command == "help":
+            from agent_data_cli.cli.commands import build_command_help_doc, build_global_help_doc
 
-            print_help_doc(build_global_help_doc())
+            topic = " ".join(getattr(args, "topic", []) or []).strip()
+            if not topic:
+                print_help_doc(build_global_help_doc())
+                return 0
+            print_help_doc(build_command_help_doc(topic))
             return 0
         raise RuntimeError("adc 尚未初始化，请先运行 `adc init`")
 

@@ -27,9 +27,3 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["agent_data_cli*"]
-
-[tool.setuptools.package-data]
-agent_data_cli = [
-    "bootstrap/sources.json",
-    "bootstrap/data_hub/*.py",
-]
