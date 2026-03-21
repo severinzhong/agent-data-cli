@@ -132,7 +132,7 @@ The simplest mental model is:
 
 - `agent-data-hub` is the source repository and provides `sources.json`
 - `data_hub` is the bootstrap source released into the local workspace by `adc init`
-- installation still uses the existing protocol surface; there is no separate plugin command family
+- installation and update still use the existing protocol surface; there is no separate plugin command family
 - `uninstall` removes the source directory from the workspace and clears that source's local configs, subscriptions, sync state, and content data
 
 Typical flow:
@@ -140,6 +140,7 @@ Typical flow:
 ```bash
 adc content search --source data_hub --channel official --query xiaohongshu
 adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu
+adc content interact --source data_hub --verb update --ref data_hub:content/xiaohongshu
 adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu
 ```
 

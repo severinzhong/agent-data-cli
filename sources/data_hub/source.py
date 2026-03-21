@@ -161,12 +161,14 @@ class DataHubSource(BaseSource):
 
     def interact(self, verb: str, refs: list[str], params: dict[str, object]) -> list[InteractionResult]:
         _ = params
-        if verb not in {"install", "uninstall"}:
+        if verb not in {"install", "update", "uninstall"}:
             raise RuntimeError(f"unsupported verb: {self.name}.{verb}")
         results: list[InteractionResult] = []
         for source_name in refs:
             if verb == "install":
                 self._install_source(source_name)
+            elif verb == "update":
+                self._update_source(source_name)
             else:
                 self._uninstall_source(source_name)
             results.append(InteractionResult(ref=source_name, verb=verb, status="ok"))
@@ -270,43 +272,41 @@ class DataHubSource(BaseSource):
 
     def _install_source(self, source_name: str) -> None:
         entry = self._entry_by_source_name(source_name)
-        if entry.install_strategy != "git_clone_subdir":
-            raise RuntimeError(f"unsupported install strategy: {entry.install_strategy}")
         workspace = self._workspace_path()
         target_dir = workspace / entry.source_name
         if target_dir.exists():
             raise RuntimeError(f"source already exists in workspace: {target_dir}")
-        workspace.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(prefix="data-hub-install-") as temp_dir:
-            repo_dir = Path(temp_dir) / "repo"
-            self._run(
-                ["git", "clone", "--depth", "1", entry.repo_url, str(repo_dir)],
-                cwd=workspace,
-            )
-            source_dir = repo_dir / entry.repo_subdir
-            if not source_dir.is_dir():
-                raise RuntimeError(f"source subdir not found in repo: {entry.repo_subdir}")
-            shutil.copytree(source_dir, target_dir)
-        requirements_file = target_dir / "requirements.txt"
-        if requirements_file.is_file():
-            self._run(
-                ["uv", "pip", "install", "-p", sys.executable, "-r", str(requirements_file)],
-                cwd=target_dir,
-            )
-        if entry.init_script:
-            script_path = target_dir / entry.init_script
-            if not script_path.is_file():
-                raise RuntimeError(f"init script not found: {script_path}")
-            self._run(["bash", str(script_path)], cwd=target_dir)
-        self._run(
-            [
-                sys.executable,
-                "-c",
-                "from pathlib import Path; from core.registry import build_default_registry; "
-                "build_default_registry(store=None, sources_dir=Path(r'%s'))" % str(workspace),
-            ],
-            cwd=Path(__file__).resolve().parents[2],
-        )
+        temp_root, staged_dir = self._stage_source(entry, temp_prefix="data-hub-install-")
+        try:
+            workspace.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(staged_dir), str(target_dir))
+        finally:
+            if temp_root.exists():
+                shutil.rmtree(temp_root)
+
+    def _update_source(self, source_name: str) -> None:
+        entry = self._entry_by_source_name(source_name)
+        workspace = self._workspace_path()
+        target_dir = workspace / entry.source_name
+        if not target_dir.is_dir():
+            raise RuntimeError(f"source not installed in workspace: {target_dir}")
+        temp_root, staged_dir = self._stage_source(entry, temp_prefix="data-hub-update-")
+        backup_dir = workspace / f".{entry.source_name}.backup"
+        if backup_dir.exists():
+            shutil.rmtree(backup_dir)
+        shutil.move(str(target_dir), str(backup_dir))
+        try:
+            shutil.move(str(staged_dir), str(target_dir))
+        except Exception:
+            if target_dir.exists():
+                shutil.rmtree(target_dir)
+            shutil.move(str(backup_dir), str(target_dir))
+            raise
+        finally:
+            if backup_dir.exists():
+                shutil.rmtree(backup_dir)
+            if temp_root.exists():
+                shutil.rmtree(temp_root)
 
     def _uninstall_source(self, source_name: str) -> None:
         entry = self._entry_by_source_name(source_name)
@@ -322,6 +322,56 @@ class DataHubSource(BaseSource):
             if entry.source_name == source_name:
                 return entry
         raise RuntimeError(f"unknown indexed source: {source_name}")
+
+    def _stage_source(self, entry: CatalogEntry, *, temp_prefix: str) -> tuple[Path, Path]:
+        if entry.install_strategy != "git_clone_subdir":
+            raise RuntimeError(f"unsupported install strategy: {entry.install_strategy}")
+        temp_root = Path(tempfile.mkdtemp(prefix=temp_prefix))
+        repo_dir = temp_root / "repo"
+        staged_workspace = temp_root / "workspace"
+        staged_workspace.mkdir(parents=True, exist_ok=True)
+        staged_dir = staged_workspace / entry.source_name
+        self._run(
+            ["git", "clone", "--depth", "1", entry.repo_url, str(repo_dir)],
+            cwd=staged_workspace,
+        )
+        source_dir = repo_dir / entry.repo_subdir
+        if not source_dir.is_dir():
+            raise RuntimeError(f"source subdir not found in repo: {entry.repo_subdir}")
+        shutil.copytree(source_dir, staged_dir)
+        self._install_requirements(staged_dir)
+        self._run_init_script(staged_dir, entry.init_script)
+        self._validate_workspace_source(staged_workspace, entry.source_name)
+        return temp_root, staged_dir
+
+    def _install_requirements(self, source_dir: Path) -> None:
+        requirements_file = source_dir / "requirements.txt"
+        if not requirements_file.is_file():
+            return
+        self._run(
+            ["uv", "pip", "install", "-p", sys.executable, "-r", str(requirements_file)],
+            cwd=source_dir,
+        )
+
+    def _run_init_script(self, source_dir: Path, init_script: str) -> None:
+        if not init_script:
+            return
+        script_path = source_dir / init_script
+        if not script_path.is_file():
+            raise RuntimeError(f"init script not found: {script_path}")
+        self._run(["bash", str(script_path)], cwd=source_dir)
+
+    def _validate_workspace_source(self, workspace: Path, source_name: str) -> None:
+        self._run(
+            [
+                sys.executable,
+                "-c",
+                "from pathlib import Path; from agent_data_cli.core.registry import build_default_registry; "
+                "registry = build_default_registry(store=None, sources_dir=Path(r'%s')); "
+                "registry.build(%r)" % (str(workspace), source_name),
+            ],
+            cwd=Path(__file__).resolve().parents[2],
+        )
 
     def _payload_field(self, record: ContentRecord, key: str) -> str:
         value = json.loads(record.raw_payload).get(key, "")
@@ -395,6 +445,11 @@ MANIFEST = SourceManifest(
             summary="Install the selected source into the configured workspace",
             examples=("adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu",),
         ),
+        "update": InteractionVerbSpec(
+            name="update",
+            summary="Update the selected installed source in the configured workspace without purging local state",
+            examples=("adc content interact --source data_hub --verb update --ref data_hub:content/xiaohongshu",),
+        ),
         "uninstall": InteractionVerbSpec(
             name="uninstall",
             summary="Uninstall the selected source from the configured workspace and clear local state",
@@ -420,11 +475,12 @@ MANIFEST = SourceManifest(
     docs=DocsSpec(
         notes=(
             "data_hub publishes official source index entries as content.",
-            "Install and uninstall are explicit content.interact verbs and never run implicitly.",
+            "Install, update, and uninstall are explicit content.interact verbs and never run implicitly.",
         ),
         examples=(
             "adc content search --source data_hub --channel official --query xiaohongshu",
             "adc content interact --source data_hub --verb install --ref data_hub:content/xiaohongshu",
+            "adc content interact --source data_hub --verb update --ref data_hub:content/xiaohongshu",
             "adc content interact --source data_hub --verb uninstall --ref data_hub:content/xiaohongshu",
         ),
     ),
