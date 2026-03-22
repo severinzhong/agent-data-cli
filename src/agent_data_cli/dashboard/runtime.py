@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import signal
 import subprocess
 import sys
@@ -45,8 +46,13 @@ def start_dashboard(
     runtime_dir.mkdir(parents=True, exist_ok=True)
     log_path = runtime_dir / LOG_FILE_NAME
     process = _spawn_process(_streamlit_command(host, port), daemon=True, log_path=log_path)
-    state = _write_state(runtime_dir, pid=process.pid, host=host, port=port, log_path=log_path)
-    return _status_from_state(state, running=True)
+    try:
+        state = _write_state(runtime_dir, pid=process.pid, host=host, port=port, log_path=log_path)
+        _wait_until_ready(process.pid, host, port)
+        return _status_from_state(state, running=True)
+    except Exception:
+        _clear_state(runtime_dir)
+        raise
 
 
 def run_dashboard_foreground(
@@ -75,6 +81,8 @@ def get_dashboard_status(*, runtime_dir: Path | None = None) -> DashboardRuntime
     if not _is_process_alive(state["pid"]):
         _clear_state(runtime_dir)
         return DashboardRuntimeStatus(running=False)
+    if not _port_is_listening(str(state["host"]), int(state["port"])):
+        return _status_from_state(state, running=False)
     return _status_from_state(state, running=True)
 
 
@@ -92,16 +100,17 @@ def stop_dashboard(
         _clear_state(runtime_dir)
         return DashboardRuntimeStatus(running=False)
     _send_signal(pid, signal.SIGTERM)
-    deadline = time.time() + term_timeout_seconds
-    while time.time() < deadline:
-        if not _is_process_alive(pid):
-            _clear_state(runtime_dir)
-            return DashboardRuntimeStatus(running=False)
-        time.sleep(0.05)
+    host = str(state["host"])
+    port = int(state["port"])
+    if _wait_until_stopped(pid, host, port, timeout_seconds=term_timeout_seconds):
+        _clear_state(runtime_dir)
+        return DashboardRuntimeStatus(running=False)
     if _is_process_alive(pid):
         _send_signal(pid, signal.SIGKILL)
-    _clear_state(runtime_dir)
-    return DashboardRuntimeStatus(running=False)
+    if _wait_until_stopped(pid, host, port, timeout_seconds=term_timeout_seconds):
+        _clear_state(runtime_dir)
+        return DashboardRuntimeStatus(running=False)
+    raise RuntimeError(f"dashboard failed to stop: pid={pid}")
 
 
 def _assert_not_running(runtime_dir: Path) -> None:
@@ -200,6 +209,34 @@ def _is_process_alive(pid: int) -> bool:
 
 def _send_signal(pid: int, sig: int) -> None:
     os.kill(pid, sig)
+
+
+def _port_is_listening(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.2)
+        return sock.connect_ex((host, port)) == 0
+
+
+def _wait_until_ready(pid: int, host: str, port: int, timeout_seconds: float = 5.0) -> None:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        if not _is_process_alive(pid):
+            raise RuntimeError("dashboard failed to start: process exited before ready")
+        if _port_is_listening(host, port):
+            return
+        time.sleep(0.05)
+    raise RuntimeError(f"dashboard failed to start within {timeout_seconds:.1f}s")
+
+
+def _wait_until_stopped(pid: int, host: str, port: int, timeout_seconds: float) -> bool:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        alive = _is_process_alive(pid)
+        listening = _port_is_listening(host, port)
+        if not alive and not listening:
+            return True
+        time.sleep(0.05)
+    return False
 
 
 def _resolve_runtime_dir(runtime_dir: Path | None) -> Path:
