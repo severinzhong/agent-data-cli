@@ -15,9 +15,9 @@ def initialize_runtime(paths: RuntimePaths, *, force: bool = False) -> None:
     paths.home.mkdir(parents=True, exist_ok=True)
     paths.runtime_dir.mkdir(parents=True, exist_ok=True)
     paths.source_workspace.mkdir(parents=True, exist_ok=True)
-    store = Store(str(paths.db_path))
-    store.init_schema()
-    store.set_cli_config("source_workspace", str(paths.source_workspace), "path", False)
+    with Store(str(paths.db_path)) as store:
+        store.init_schema()
+        store.set_cli_config("source_workspace", str(paths.source_workspace), "path", False)
 
 
 def _reset_runtime(paths: RuntimePaths) -> None:

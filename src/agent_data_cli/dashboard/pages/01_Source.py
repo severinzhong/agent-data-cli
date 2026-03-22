@@ -12,45 +12,45 @@ from agent_data_cli.utils.time import utc_now_iso
 
 
 def render_page() -> None:
-    ctx = build_dashboard_context()
-    page_state = ensure_page_result(
-        st.session_state,
-        "source_page_state",
-        loader=lambda: {"rows": list_sources(ctx.registry)},
-        updated_at=utc_now_iso(),
-    )
-    st.title("Source")
+    with build_dashboard_context() as ctx:
+        page_state = ensure_page_result(
+            st.session_state,
+            "source_page_state",
+            loader=lambda: {"rows": list_sources(ctx.registry)},
+            updated_at=utc_now_iso(),
+        )
+        st.title("Source")
 
-    if st.button("Refresh Sources", key="source_refresh"):
-        rows = list_sources(ctx.registry)
-        save_page_result(st.session_state, "source_page_state", inputs={}, result={"rows": rows}, updated_at=utc_now_iso())
-        page_state = get_page_state(st.session_state, "source_page_state")
-    render_rows(None if page_state["result"] is None else page_state["result"]["rows"], empty_message="No source data yet.")
+        if st.button("Refresh Sources", key="source_refresh"):
+            rows = list_sources(ctx.registry)
+            save_page_result(st.session_state, "source_page_state", inputs={}, result={"rows": rows}, updated_at=utc_now_iso())
+            page_state = get_page_state(st.session_state, "source_page_state")
+        render_rows(None if page_state["result"] is None else page_state["result"]["rows"], empty_message="No source data yet.")
 
-    selected_source = source_select(ctx.registry, key="source_page_source")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Check Health", key="source_health") and selected_source is not None:
-            try:
-                result = check_source_health(ctx.registry, ctx.store, selected_source)
-                page_state["health_result"] = result
-                st.session_state["source_page_state"] = page_state
-            except Exception as exc:  # noqa: BLE001
-                render_exception(exc)
+        selected_source = source_select(ctx.registry, key="source_page_source")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Check Health", key="source_health") and selected_source is not None:
+                try:
+                    result = check_source_health(ctx.registry, ctx.store, selected_source)
+                    page_state["health_result"] = result
+                    st.session_state["source_page_state"] = page_state
+                except Exception as exc:  # noqa: BLE001
+                    render_exception(exc)
 
-        if page_state.get("health_result") is not None:
-            render_object_details(page_state["health_result"], title="Health")
+            if page_state.get("health_result") is not None:
+                render_object_details(page_state["health_result"], title="Health")
 
-    with col2:
-        if st.button("Config Check", key="source_config_check") and selected_source is not None:
-            try:
-                page_state["config_check_result"] = check_source_config(ctx.registry, selected_source)
-                st.session_state["source_page_state"] = page_state
-            except Exception as exc:  # noqa: BLE001
-                render_exception(exc)
+        with col2:
+            if st.button("Config Check", key="source_config_check") and selected_source is not None:
+                try:
+                    page_state["config_check_result"] = check_source_config(ctx.registry, selected_source)
+                    st.session_state["source_page_state"] = page_state
+                except Exception as exc:  # noqa: BLE001
+                    render_exception(exc)
 
-        if page_state.get("config_check_result") is not None:
-            render_object_details(page_state["config_check_result"], title="Config Check")
+            if page_state.get("config_check_result") is not None:
+                render_object_details(page_state["config_check_result"], title="Config Check")
 
 
 if running_in_streamlit():

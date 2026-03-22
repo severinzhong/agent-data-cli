@@ -29,11 +29,11 @@ def main(argv: list[str] | None = None) -> int:
     argv = normalize_argv(list(sys.argv[1:] if argv is None else argv))
     parser = build_parser()
     args, extras = parse_command_argv(parser, argv)
-    store = Store(DEFAULT_DB_PATH)
-    store.init_schema()
-    registry = build_default_registry(store)
-    store.init_schema(storage_specs=registry.list_storage_specs())
-    return dispatch_command(args, extras, CommandContext(registry=registry, store=store))
+    with Store(DEFAULT_DB_PATH) as store:
+        store.init_schema()
+        registry = build_default_registry(store)
+        store.init_schema(storage_specs=registry.list_storage_specs())
+        return dispatch_command(args, extras, CommandContext(registry=registry, store=store))
 
 
 def console_main() -> None:

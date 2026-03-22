@@ -14,6 +14,15 @@ class DashboardContext:
     store: Store
     registry: SourceRegistry
 
+    def close(self) -> None:
+        self.store.close()
+
+    def __enter__(self) -> DashboardContext:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
 
 def build_dashboard_context(
     *,

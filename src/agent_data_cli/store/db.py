@@ -30,9 +30,21 @@ from . import subscriptions as subscription_store
 class Store:
     def __init__(self, path: str) -> None:
         self.path = path
-        self._connection = sqlite3.connect(self.path)
+        self._connection: sqlite3.Connection | None = sqlite3.connect(self.path)
         self._connection.row_factory = sqlite3.Row
         self._storage_specs: dict[str, SourceStorageSpec] = {}
+
+    def close(self) -> None:
+        if self._connection is None:
+            return
+        self._connection.close()
+        self._connection = None
+
+    def __enter__(self) -> Store:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
 
     def init_schema(self, storage_specs: list[SourceStorageSpec] | None = None) -> None:
         if storage_specs is not None:
@@ -283,6 +295,8 @@ class Store:
             return content_store.list_content_channels(connection, source, content_key)
 
     def _connect(self) -> sqlite3.Connection:
+        if self._connection is None:
+            raise RuntimeError("store is closed")
         return self._connection
 
     def _table_for_source(self, source: str) -> str:

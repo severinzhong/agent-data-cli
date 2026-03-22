@@ -104,18 +104,24 @@ def _print_cli_config_entries(ctx: CommandContext) -> None:
 
 def _print_cli_config_entries_with_paths(ctx: CommandContext, paths: RuntimePaths) -> None:
     store = ctx.store
-    if str(paths.db_path) != getattr(ctx.store, "path", "") and paths.db_path.exists():
-        store = Store(str(paths.db_path))
-    defaults_by_key = {
-        spec.key: ctx.registry.get_cli_config_default(spec.key)
-        for spec in ctx.registry.get_cli_config_specs()
-    }
-    defaults_by_key["source_workspace"] = str(paths.source_workspace)
-    print_cli_config_entries(
-        ctx.registry.get_cli_config_specs(),
-        store.list_cli_configs(),
-        defaults_by_key,
-    )
+    temporary_store: Store | None = None
+    try:
+        if str(paths.db_path) != getattr(ctx.store, "path", "") and paths.db_path.exists():
+            temporary_store = Store(str(paths.db_path))
+            store = temporary_store
+        defaults_by_key = {
+            spec.key: ctx.registry.get_cli_config_default(spec.key)
+            for spec in ctx.registry.get_cli_config_specs()
+        }
+        defaults_by_key["source_workspace"] = str(paths.source_workspace)
+        print_cli_config_entries(
+            ctx.registry.get_cli_config_specs(),
+            store.list_cli_configs(),
+            defaults_by_key,
+        )
+    finally:
+        if temporary_store is not None:
+            temporary_store.close()
 
 
 def _resolve_active_runtime_paths(ctx: CommandContext) -> RuntimePaths:

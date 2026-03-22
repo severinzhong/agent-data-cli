@@ -14,8 +14,8 @@ def migrate_source_workspace(current_paths: RuntimePaths, target_source_workspac
     _ensure_target_directory_available(new_source_workspace)
     new_source_workspace.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(current_paths.source_workspace), str(new_source_workspace))
-    store = Store(str(current_paths.db_path))
-    store.set_cli_config("source_workspace", str(new_source_workspace), "path", False)
+    with Store(str(current_paths.db_path)) as store:
+        store.set_cli_config("source_workspace", str(new_source_workspace), "path", False)
     return RuntimePaths(
         home=current_paths.home,
         db_path=current_paths.db_path,
